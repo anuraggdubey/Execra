@@ -287,39 +287,107 @@
   }
 
   .workspace-shell {
-    @apply mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6;
   }
 
   .workspace-hero {
     background:
-      radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 12%, transparent), transparent 34%),
-      linear-gradient(180deg, var(--surface), var(--surface-elevated));
+      radial-gradient(ellipse 60% 50% at 0% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent),
+      radial-gradient(ellipse 40% 60% at 100% 100%, color-mix(in srgb, var(--primary) 5%, transparent), transparent),
+      var(--surface);
     border: 1px solid var(--border);
-    @apply mb-6 grid gap-5 rounded-3xl p-6 lg:grid-cols-[minmax(0,1.2fr)_360px] lg:items-end;
+    @apply mb-6 rounded-2xl px-6 py-5 sm:px-7 sm:py-6;
+  }
+
+  .workspace-hero-grid {
+    @apply grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center;
+  }
+
+  .workspace-stat-strip {
+    @apply flex flex-wrap gap-3;
+  }
+
+  .workspace-stat {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    @apply flex min-w-[120px] flex-1 flex-col gap-1 rounded-xl px-4 py-3;
+  }
+
+  .workspace-stat-label {
+    color: var(--muted);
+    @apply text-[10px] font-semibold uppercase tracking-[0.1em];
+  }
+
+  .workspace-stat-value {
+    color: var(--foreground);
+    @apply text-base font-semibold tracking-tight;
+  }
+
+  .workspace-sidebar-card {
+    border: 1px solid transparent;
+    @apply flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200;
+  }
+
+  .workspace-sidebar-card:hover {
+    background: var(--surface-elevated);
+  }
+
+  .workspace-sidebar-card[data-active="true"] {
+    background: var(--primary-soft);
+    border-color: color-mix(in srgb, var(--primary) 20%, transparent);
+    border-left: 3px solid var(--primary);
   }
 
   .workspace-panel-head {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--primary) 3%, var(--surface)), var(--surface));
     border-bottom: 1px solid var(--border);
-    @apply flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between;
+    @apply flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .workspace-chip {
-    background: var(--surface-elevated);
-    border: 1px solid var(--border);
-    color: var(--foreground-soft);
-    @apply inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium;
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface-elevated));
+    border: 1px solid color-mix(in srgb, var(--primary) 15%, var(--border));
+    color: var(--primary);
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold;
   }
 
   .workspace-result-card {
-    background: linear-gradient(180deg, var(--surface), var(--surface-elevated));
+    background: var(--surface);
     border: 1px solid var(--border);
-    @apply rounded-2xl p-4;
+    box-shadow: var(--shadow-sm);
+    @apply space-y-4 rounded-2xl p-5;
   }
 
   .workspace-upload {
-    background: linear-gradient(180deg, var(--surface), var(--surface-elevated));
-    border: 1px dashed var(--border-strong);
-    @apply flex cursor-pointer items-start gap-3 rounded-2xl px-4 py-4 transition-colors hover:border-[color:var(--primary)];
+    background: var(--surface);
+    border: 2px dashed color-mix(in srgb, var(--primary) 25%, var(--border));
+    @apply flex cursor-pointer items-center gap-4 rounded-2xl px-5 py-5 transition-all duration-200;
+  }
+
+  .workspace-upload:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+  }
+
+  .workspace-connect-banner {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, var(--surface)), var(--surface));
+    border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+    @apply mb-6 flex flex-col gap-4 rounded-2xl px-5 py-5 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .workspace-section-title {
+    @apply text-lg font-semibold tracking-tight text-[color:var(--foreground)];
+  }
+
+  .top-navbar {
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    @apply flex h-12 shrink-0 items-center justify-between px-4 sm:h-14 sm:px-6;
   }
 }
 

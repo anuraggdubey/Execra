@@ -86,12 +86,18 @@ async function submitContractInvocation(params: {
     })
     const sendResult = await server.sendTransaction(signedTx)
 
-    if (sendResult.status !== "PENDING" && sendResult.status !== "SUCCESS") {
+    const status = sendResult.status as string
+    if (status !== "PENDING" && status !== "SUCCESS") {
         throw new Error(sendResult.errorResult?.toString() ?? "Soroban transaction submission failed")
     }
 
     const txHash = sendResult.hash
-    for (let attempt = 0; attempt < 15; attempt += 1) {
+
+    // Soroban testnet usually confirms in 2-5s.
+    // Poll quickly: 400ms first, then 600ms intervals, max ~6s total.
+    const pollDelays = [400, 600, 600, 600, 600, 600, 800, 800, 1000, 1000]
+    for (const delay of pollDelays) {
+        await new Promise((resolve) => window.setTimeout(resolve, delay))
         const txStatus = await server.getTransaction(txHash)
         if (txStatus.status === "SUCCESS") {
             return {
@@ -103,8 +109,6 @@ async function submitContractInvocation(params: {
         if (txStatus.status === "FAILED") {
             throw new Error("Soroban transaction failed on-chain")
         }
-
-        await new Promise((resolve) => window.setTimeout(resolve, 1200))
     }
 
     throw new Error("Timed out waiting for Soroban transaction confirmation")
@@ -126,7 +130,7 @@ export async function createEscrowedTask(params: SorobanTaskLifecycleParams): Pr
 
     const receipt = await submitContractInvocation({
         walletAddress: params.walletAddress,
-        walletProviderId: params.walletProviderId,
+        walletProviderId: params.walletProviderId as SupportedWalletId | null,
         functionName: "create_task",
         args: [
             nativeToScVal(params.onChainTaskId, { type: "u64" }),
@@ -157,7 +161,7 @@ export async function completeEscrowedTask(params: {
 
     const receipt = await submitContractInvocation({
         walletAddress: params.walletAddress,
-        walletProviderId: params.walletProviderId,
+        walletProviderId: params.walletProviderId as SupportedWalletId | null,
         functionName: "complete_task",
         args: [
             nativeToScVal(params.onChainTaskId, { type: "u64" }),
@@ -186,7 +190,7 @@ export async function cancelEscrowedTask(params: {
 
     const receipt = await submitContractInvocation({
         walletAddress: params.walletAddress,
-        walletProviderId: params.walletProviderId,
+        walletProviderId: params.walletProviderId as SupportedWalletId | null,
         functionName: "cancel_task",
         args: [
             nativeToScVal(params.onChainTaskId, { type: "u64" }),
@@ -222,7 +226,7 @@ export async function fetchOnChainTask(params: { taskId: bigint }) {
         .setTimeout(60)
         .build()
 
-    const simulation = await server.simulateTransaction(tx)
+    const simulation = await server.simulateTransaction(tx) as { result?: { retval?: xdr.ScVal } }
     if (!simulation.result?.retval) {
         throw new Error("No task data returned from contract")
     }

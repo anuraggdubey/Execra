@@ -216,17 +216,23 @@ export default function AgentsPage() {
                 throw new Error("Coding agent returned an incomplete payload.")
             }
 
-            setCodingTxState("Off-chain work finished. Confirming on-chain completion...")
-            await finalizeEscrowedTask({
+            setCodingTxState("Confirming on-chain...")
+            setCodingState("done")
+            completeAgentRun("coding", `Prepared ${data.projectId} for handoff and follow-on integration.`)
+
+            // Non-blocking on-chain finalization — user sees results immediately
+            finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-            setCodingTxState("On-chain completion confirmed.")
-            setCodingState("done")
-            completeAgentRun("coding", `Prepared ${data.projectId} for handoff and follow-on integration.`)
+                .then(() => setCodingTxState("On-chain confirmed ✓"))
+                .catch((err) => {
+                    console.error("[coding] on-chain finalize error:", err)
+                    setCodingTxState("On-chain sync pending — results are saved.")
+                })
         } catch (error: unknown) {
             const message = getErrorMessage(error, "Coding agent failed")
             setCodingError(message)
@@ -281,17 +287,23 @@ export default function AgentsPage() {
                 analysis: data.analysis,
                 truncated: Boolean(data.truncated),
             })
-            setDocumentTxState("Off-chain work finished. Confirming on-chain completion...")
-            await finalizeEscrowedTask({
+            setDocumentTxState("Confirming on-chain...")
+            setDocumentState("done")
+            completeAgentRun("document", `Analyzed ${data.fileName} and prepared a concise brief.`)
+
+            // Non-blocking on-chain finalization — user sees results immediately
+            finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-            setDocumentTxState("On-chain completion confirmed.")
-            setDocumentState("done")
-            completeAgentRun("document", `Analyzed ${data.fileName} and prepared a concise brief.`)
+                .then(() => setDocumentTxState("On-chain confirmed ✓"))
+                .catch((err) => {
+                    console.error("[document] on-chain finalize error:", err)
+                    setDocumentTxState("On-chain sync pending — results are saved.")
+                })
         } catch (error: unknown) {
             const message = getErrorMessage(error, "Document analysis failed")
             setDocumentError(message)
@@ -311,60 +323,101 @@ export default function AgentsPage() {
     }
 
     return (
-        <div className="workspace-shell">
-            <section className="workspace-hero">
-                <div>
-                    <div className="eyebrow">Web3 MVP workspace</div>
-                    <h1 className="page-title mt-2">Three agents, one clean operating surface.</h1>
-                    <p className="page-copy mt-3">
-                        The workspace is now focused on the GitHub, Coding, and Document agents, with your Stellar wallet
-                        address acting as the primary identity for every agent workflow.
-                    </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                    <WorkspaceStat label="Agents" value="3" />
-                    <WorkspaceStat label="Wallet" value={walletAddress ? shortWalletAddress ?? "Connected" : "Required"} />
-                    <WorkspaceStat label="Balance" value={walletAddress ? `${walletBalance ?? "0.0000000"} XLM` : "Testnet"} />
+        <div className="mx-auto w-full max-w-[1480px] overflow-x-hidden px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+            {/* ── Hero ── */}
+            <section className="panel mb-4 rounded-xl px-4 py-4 sm:mb-6 sm:rounded-2xl sm:px-7 sm:py-6">
+                <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                    <div>
+                        <div className="eyebrow">Web3 MVP workspace</div>
+                        <h1 className="mt-1.5 font-heading text-xl font-semibold tracking-[-0.03em] text-foreground sm:mt-2 sm:text-3xl">
+                            Three agents, one surface.
+                        </h1>
+                        <p className="page-copy mt-2 hidden sm:block">
+                            Focused on GitHub, Coding, and Document agents — your Stellar wallet is the primary identity
+                            for every workflow.
+                        </p>
+                    </div>
+                    <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 sm:mx-0 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:pb-0">
+                        <div className="flex min-w-[100px] flex-shrink-0 flex-col gap-0.5 rounded-lg border border-border border-l-[3px] border-l-primary bg-surface-elevated px-3 py-2 sm:min-w-[130px] sm:gap-1 sm:rounded-xl sm:px-4 sm:py-3">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted sm:text-[10px]">Agents</div>
+                            <div className="text-sm font-semibold tracking-tight text-foreground sm:text-base">3</div>
+                        </div>
+                        <div className="flex min-w-[100px] flex-shrink-0 flex-col gap-0.5 rounded-lg border border-border border-l-[3px] border-l-primary bg-surface-elevated px-3 py-2 sm:min-w-[130px] sm:gap-1 sm:rounded-xl sm:px-4 sm:py-3">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted sm:text-[10px]">Wallet</div>
+                            <div className="text-sm font-semibold tracking-tight text-foreground sm:text-base">{walletAddress ? shortWalletAddress ?? "Connected" : "—"}</div>
+                        </div>
+                        <div className="flex min-w-[100px] flex-shrink-0 flex-col gap-0.5 rounded-lg border border-border border-l-[3px] border-l-primary bg-surface-elevated px-3 py-2 sm:min-w-[130px] sm:gap-1 sm:rounded-xl sm:px-4 sm:py-3">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted sm:text-[10px]">Balance</div>
+                            <div className="text-sm font-semibold tracking-tight text-foreground sm:text-base">{walletAddress ? `${walletBalance ?? "0"} XLM` : "Testnet"}</div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
+            {/* ── Wallet Gate ── */}
             {!walletAddress && (
-                <section className="panel mb-6 flex flex-col gap-4 rounded-3xl border-dashed px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <section className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-2xl sm:px-5 sm:py-5">
                     <div>
-                        <div className="text-sm font-semibold text-foreground">Connect a Stellar wallet to unlock the agents</div>
-                        <p className="mt-1 text-sm text-foreground-soft">
+                        <div className="text-[13px] font-semibold text-foreground sm:text-sm">Connect a Stellar wallet to unlock the agents</div>
+                        <p className="mt-0.5 text-xs text-foreground-soft sm:mt-1 sm:text-sm">
                             GitHub, Coding, and Document actions stay gated until a testnet wallet is connected.
                         </p>
                     </div>
-                    <ConnectWalletButton className="button-primary" />
+                    <ConnectWalletButton className="button-primary w-full sm:w-auto" />
                 </section>
             )}
 
-            <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-                <aside className="panel p-3 sm:p-4">
-                    <div className="eyebrow px-2">Active stack</div>
-                    <div className="mt-3 space-y-2">
+            {/* ── Main Layout ── */}
+            <section className="grid gap-4 sm:gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+                {/* Mobile: horizontal pill selector | Desktop: sidebar cards */}
+                <aside className="panel overflow-hidden p-2 sm:sticky sm:top-0 sm:self-start sm:p-4">
+                    <div className="eyebrow hidden px-2 pb-2 sm:block">Active stack</div>
+
+                    {/* Mobile: horizontal scrollable agent pills */}
+                    <div className="flex gap-1.5 overflow-x-auto sm:hidden">
                         {AGENTS.map((agent) => {
                             const Icon = agent.icon
                             const active = agent.id === selectedAgentId
-
                             return (
                                 <button
                                     key={agent.id}
                                     onClick={() => setSelectedAgentId(agent.id)}
-                                    className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-all ${
-                                        active ? "bg-primary-soft ring-1 ring-[color:var(--ring)]" : "hover:bg-surface-elevated"
+                                    className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${
+                                        active
+                                            ? "bg-primary text-white"
+                                            : "bg-surface-elevated text-foreground-soft"
                                     }`}
                                 >
-                                    <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                    <Icon size={14} />
+                                    {agent.label}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* Desktop: full sidebar cards */}
+                    <div className="mt-1 hidden space-y-1 sm:block">
+                        {AGENTS.map((agent) => {
+                            const Icon = agent.icon
+                            const active = agent.id === selectedAgentId
+                            return (
+                                <button
+                                    key={agent.id}
+                                    onClick={() => setSelectedAgentId(agent.id)}
+                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 ${
+                                        active
+                                            ? "border-l-[3px] border-l-primary bg-primary-soft"
+                                            : "border-l-[3px] border-l-transparent hover:bg-surface-elevated"
+                                    }`}
+                                >
+                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
                                         active ? "bg-[color:var(--primary)] text-white" : "bg-surface-elevated text-primary"
                                     }`}>
-                                        <Icon size={18} />
+                                        <Icon size={15} />
                                     </div>
                                     <div className="min-w-0">
-                                        <div className="text-sm font-semibold text-foreground">{agent.label}</div>
-                                        <div className="mt-1 text-xs text-muted">{agent.badge}</div>
-                                        <p className="mt-2 text-sm leading-relaxed text-foreground-soft">{agent.description}</p>
+                                        <div className="text-[13px] font-semibold text-foreground">{agent.label}</div>
+                                        <div className="text-[11px] font-medium text-primary">{agent.badge}</div>
                                     </div>
                                 </button>
                             )
@@ -372,12 +425,12 @@ export default function AgentsPage() {
                     </div>
                 </aside>
 
-                <div className="space-y-6">
-                    <section className="panel p-5">
+                <div className="min-w-0 space-y-4 sm:space-y-5">
+                    <section className="panel p-3 sm:p-5">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <div className="eyebrow">Task History</div>
-                                <h2 className="mt-1 text-lg font-semibold text-foreground">Supabase-backed recent tasks</h2>
+                                <h2 className="mt-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">Recent tasks</h2>
                             </div>
                             <StatusPill state={taskHistoryLoading ? "running" : "idle"} />
                         </div>
@@ -426,18 +479,18 @@ export default function AgentsPage() {
 
                     {selectedAgent.id === "coding" && (
                         <section className="panel overflow-hidden">
-                            <div className="workspace-panel-head">
+                        <div className="flex flex-col gap-2 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
                                 <div>
                                     <div className="eyebrow">Coding Agent</div>
-                                    <h2 className="mt-1 text-xl font-semibold text-foreground">Generate the next build surface</h2>
+                                    <h2 className="mt-0.5 text-base font-semibold tracking-tight text-foreground sm:mt-1 sm:text-lg">Generate the next build surface</h2>
                                 </div>
-                                <div className="workspace-chip">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-primary">
                                     <Sparkles size={14} />
                                     Smart-contract ready handoff
                                 </div>
                             </div>
 
-                            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                            <div className="grid gap-4 p-3 sm:gap-5 sm:p-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                                 <div className="space-y-4">
                                     <div>
                                         <label className="mb-2 block text-sm font-medium text-foreground">Task prompt</label>
@@ -509,7 +562,7 @@ export default function AgentsPage() {
                                     )}
                                 </div>
 
-                                <div className="workspace-result-card">
+                                <div className="space-y-4 rounded-xl border border-border bg-surface p-3 sm:rounded-2xl sm:p-5">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <div className="eyebrow">Output</div>
@@ -577,20 +630,20 @@ export default function AgentsPage() {
 
                     {selectedAgent.id === "document" && (
                         <section className="panel overflow-hidden">
-                            <div className="workspace-panel-head">
+                        <div className="flex flex-col gap-2 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
                                 <div>
                                     <div className="eyebrow">Document Agent</div>
-                                    <h2 className="mt-1 text-xl font-semibold text-foreground">Turn docs into implementation context</h2>
+                                    <h2 className="mt-0.5 text-base font-semibold tracking-tight text-foreground sm:mt-1 sm:text-lg">Turn docs into implementation context</h2>
                                 </div>
-                                <div className="workspace-chip">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-primary">
                                     <Layers3 size={14} />
                                     Specs, briefs, and datasets
                                 </div>
                             </div>
 
-                            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                            <div className="grid gap-4 p-3 sm:gap-5 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                                 <div className="space-y-4">
-                                    <label className="workspace-upload">
+                                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border px-3 py-3 transition-all duration-200 hover:border-primary hover:bg-primary-soft sm:gap-4 sm:rounded-2xl sm:px-5 sm:py-5">
                                         <Upload size={18} className="text-primary" />
                                         <div>
                                             <div className="text-sm font-semibold text-foreground">
@@ -662,7 +715,7 @@ export default function AgentsPage() {
                                     )}
                                 </div>
 
-                                <div className="workspace-result-card">
+                                <div className="space-y-4 rounded-xl border border-border bg-surface p-3 sm:rounded-2xl sm:p-5">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <div className="eyebrow">Analysis</div>
@@ -709,13 +762,9 @@ export default function AgentsPage() {
     )
 }
 
-function WorkspaceStat({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-border bg-surface px-4 py-4">
-            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{label}</div>
-            <div className="mt-2 text-xl font-semibold text-foreground">{value}</div>
-        </div>
-    )
+function WorkspaceStat(_props: { label: string; value: string }) {
+    // Legacy component — now handled inline with workspace-stat classes
+    return null
 }
 
 function StatusPill({ state }: { state: RunState }) {

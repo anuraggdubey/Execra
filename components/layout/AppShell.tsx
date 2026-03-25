@@ -18,20 +18,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex h-screen h-dvh flex-col overflow-hidden bg-background text-foreground">
             <TopNavbar />
-            <main className={`flex-1 overflow-y-auto ${isAgentsPage ? "" : "px-4 py-6 sm:px-6 lg:px-8"}`}>
+            <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isAgentsPage ? "" : "px-4 py-6 sm:px-6 lg:px-8"}`}>
                 {isAgentsPage ? children : (
                     <div className="mx-auto w-full max-w-[1520px]">{children}</div>
                 )}
             </main>
 
-            {/* Mobile bottom nav — only on non-agent pages */}
-            {!isAgentsPage && (
-                <nav className="flex h-14 shrink-0 items-center justify-around border-t border-border bg-surface safe-bottom sm:hidden">
-                    <MobileNavItem href="/agents" icon={<Sparkles size={18} />} label="Workspace" active={pathname === "/agents"} />
-                    <MobileNavItem href="/activity" icon={<Activity size={18} />} label="Activity" active={pathname === "/activity"} />
-                    <MobileNavItem href="/settings" icon={<Settings size={18} />} label="Settings" active={pathname === "/settings"} />
-                </nav>
-            )}
+            {/* Mobile bottom nav */}
+            <nav className="flex h-14 shrink-0 items-center justify-around border-t border-border bg-surface safe-bottom sm:hidden">
+                <MobileNavItem href="/agents" icon={<Sparkles size={18} />} label="Workspace" active={pathname === "/agents"} />
+                <MobileNavItem href="/activity" icon={<Activity size={18} />} label="Activity" active={pathname === "/activity"} />
+                <MobileNavItem href="/settings" icon={<Settings size={18} />} label="Settings" active={pathname === "/settings"} />
+            </nav>
         </div>
     )
 }

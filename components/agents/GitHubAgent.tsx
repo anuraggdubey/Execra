@@ -262,20 +262,25 @@ export default function GitHubAgent() {
 
             setRepoContext(data.context)
             setRepoFiles(data.files)
-            setTxState("Off-chain indexing finished. Confirming on-chain completion...")
-            await finalizeEscrowedTask({
+            setTxState("Confirming on-chain...")
+            completeAgentRun(
+                "github",
+                `Indexed ${selectedRepo.fullName} and loaded ${data.files?.length ?? 0} repository files.`,
+                2
+            )
+
+            finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress: walletAddress!,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-            setTxState("On-chain completion confirmed.")
-            completeAgentRun(
-                "github",
-                `Indexed ${selectedRepo.fullName} and loaded ${data.files?.length ?? 0} repository files.`,
-                2
-            )
+                .then(() => setTxState("On-chain confirmed ✓"))
+                .catch((err) => {
+                    console.error("[github-index] on-chain finalize error:", err)
+                    setTxState("On-chain sync pending — results are saved.")
+                })
         } catch (err) {
             const message = getErrorMessage(err, "Failed to index repository")
             setError(message)
@@ -327,16 +332,21 @@ export default function GitHubAgent() {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "GitHub agent failed")
             setResult(data.answer)
-            setTxState("Off-chain analysis finished. Confirming on-chain completion...")
-            await finalizeEscrowedTask({
+            setTxState("Confirming on-chain...")
+            completeAgentRun("github", `Completed repository prompt for ${selectedRepo.fullName}.`, 5)
+
+            finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-            setTxState("On-chain completion confirmed.")
-            completeAgentRun("github", `Completed repository prompt for ${selectedRepo.fullName}.`, 5)
+                .then(() => setTxState("On-chain confirmed ✓"))
+                .catch((err) => {
+                    console.error("[github-ask] on-chain finalize error:", err)
+                    setTxState("On-chain sync pending — results are saved.")
+                })
         } catch (err) {
             const message = getErrorMessage(err, "GitHub agent failed")
             setError(message)
@@ -382,16 +392,21 @@ export default function GitHubAgent() {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "Repository analysis failed")
             setResult(data.analysis)
-            setTxState("Off-chain review finished. Confirming on-chain completion...")
-            await finalizeEscrowedTask({
+            setTxState("Confirming on-chain...")
+            completeAgentRun("github", `Completed full review for ${selectedRepo.fullName}.`, 6)
+
+            finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-            setTxState("On-chain completion confirmed.")
-            completeAgentRun("github", `Completed full review for ${selectedRepo.fullName}.`, 6)
+                .then(() => setTxState("On-chain confirmed ✓"))
+                .catch((err) => {
+                    console.error("[github-review] on-chain finalize error:", err)
+                    setTxState("On-chain sync pending — results are saved.")
+                })
         } catch (err) {
             const message = getErrorMessage(err, "Repository analysis failed")
             setError(message)
@@ -431,25 +446,26 @@ export default function GitHubAgent() {
                 </div>
             )}
 
-            <div className="rounded-lg border border-border bg-surface">
-                <div className="border-b border-border px-4 py-3">
-                    <div className="text-[11px] font-medium uppercase tracking-wider text-muted">Setup Progress</div>
-                </div>
-                <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
-                    <StatusCell label="Wallet" ready={Boolean(walletAddress)} />
-                    <StatusCell label="GitHub" ready={Boolean(ghUser)} />
-                    <StatusCell label="Repository" ready={Boolean(selectedRepo)} />
-                    <StatusCell label="Indexed" ready={Boolean(repoContext)} />
+            <div className="rounded-xl border border-border bg-surface p-3 sm:p-4">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-muted mb-3">Setup Progress</div>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                    <StepDot label="Wallet" ready={Boolean(walletAddress)} />
+                    <div className="h-px flex-1 bg-border" />
+                    <StepDot label="GitHub" ready={Boolean(ghUser)} />
+                    <div className="h-px flex-1 bg-border" />
+                    <StepDot label="Repository" ready={Boolean(selectedRepo)} />
+                    <div className="h-px flex-1 bg-border" />
+                    <StepDot label="Indexed" ready={Boolean(repoContext)} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-[1fr_1fr]">
-                <div className="rounded-lg border border-border bg-surface">
-                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-border bg-surface overflow-hidden">
+                    <div className="flex items-center gap-2 border-b border-border px-3 py-2 sm:px-4 sm:py-3">
                         <Github size={14} className="text-primary" />
-                        <span className="text-[11px] font-medium uppercase tracking-wider text-muted">Step 1 - Connect GitHub</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Step 1 — Connect GitHub</span>
                     </div>
-                    <div className="space-y-3 p-4">
+                    <div className="space-y-3 p-3 sm:p-4">
                         <div>
                             <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-muted">Reward (XLM)</label>
                             <input
@@ -521,12 +537,12 @@ export default function GitHubAgent() {
                     </div>
                 </div>
 
-                <div className="rounded-lg border border-border bg-surface">
-                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <div className="rounded-xl border border-border bg-surface overflow-hidden">
+                    <div className="flex items-center gap-2 border-b border-border px-3 py-2 sm:px-4 sm:py-3">
                         <FolderGit2 size={14} className="text-primary" />
-                        <span className="text-[11px] font-medium uppercase tracking-wider text-muted">Step 2 - Select Repository</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Step 2 — Select Repository</span>
                     </div>
-                    <div className="space-y-3 p-4">
+                    <div className="space-y-3 p-3 sm:p-4">
                         <select
                             value={selectedRepo?.fullName ?? ""}
                             onChange={(event) => {
@@ -590,11 +606,11 @@ export default function GitHubAgent() {
                 </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-surface">
-                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="rounded-xl border border-border bg-surface overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2 sm:px-4 sm:py-3">
                     <div className="flex items-center gap-2">
                         <BookOpenText size={14} className="text-primary" />
-                        <span className="text-[11px] font-medium uppercase tracking-wider text-muted">Step 3 - Ask the Agent</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Step 3 — Ask the Agent</span>
                     </div>
                     <button
                         type="button"
@@ -678,8 +694,8 @@ export default function GitHubAgent() {
             </div>
 
             {repoFiles.length > 0 && (
-                <details className="rounded-lg border border-border bg-surface">
-                    <summary className="cursor-pointer px-4 py-3 text-[11px] font-medium uppercase tracking-wider text-muted select-none" style={{ minHeight: 44, display: "flex", alignItems: "center" }}>
+                <details className="rounded-xl border border-border bg-surface overflow-hidden">
+                    <summary className="cursor-pointer px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted select-none" style={{ minHeight: 44, display: "flex", alignItems: "center" }}>
                         Indexed Files ({repoFiles.length})
                     </summary>
                     <div className="max-h-[300px] overflow-y-auto border-t border-border p-3 space-y-1">
@@ -704,15 +720,19 @@ export default function GitHubAgent() {
     )
 }
 
-function StatusCell({ label, ready }: { label: string; ready: boolean }) {
+function StepDot({ label, ready }: { label: string; ready: boolean }) {
     return (
-        <div className="flex items-center gap-2 bg-surface px-3.5 py-3 sm:px-4">
-            {ready ? (
-                <CheckCircle2 size={14} className="shrink-0 text-emerald-500" />
-            ) : (
-                <Clock size={14} className="shrink-0 text-muted" />
-            )}
-            <span className={`text-xs font-medium ${ready ? "text-foreground" : "text-muted"}`}>{label}</span>
+        <div className="flex flex-col items-center gap-1.5">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                ready ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-surface-elevated text-muted"
+            }`}>
+                {ready ? (
+                    <CheckCircle2 size={14} />
+                ) : (
+                    <Clock size={12} />
+                )}
+            </div>
+            <span className={`text-[10px] font-medium ${ready ? "text-foreground" : "text-muted"}`}>{label}</span>
         </div>
     )
 }

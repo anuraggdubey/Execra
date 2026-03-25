@@ -25,6 +25,12 @@ This creates:
 - `tasks`
 - `agent_runs`
 
+If you already ran the earlier schema before Soroban fields were added, also run:
+
+```sql
+-- file: supabase/soroban_migration.sql
+```
+
 It also enables RLS with deny-by-default policies, so direct public table access is blocked and the app server uses the service role key.
 
 ## Import Existing Local Coding Outputs
@@ -49,4 +55,21 @@ Then rerun:
 
 ```bash
 npm run import:legacy-projects
+```
+
+## Soroban Setup
+
+After you deploy the Soroban contract, add:
+
+```env
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+NEXT_PUBLIC_SOROBAN_CONTRACT_ID=your_deployed_contract_id
+NEXT_PUBLIC_STELLAR_XLM_SAC_ID=your_testnet_xlm_sac_id
+```
+
+The contract package lives in:
+
+```text
+contracts/task_escrow
 ```

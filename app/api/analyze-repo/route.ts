@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const startedAt = Date.now()
 
     try {
-        const { owner, repo, context, walletAddress } = await req.json()
+        const { owner, repo, context, walletAddress, blockchain } = await req.json()
         if (!context) return NextResponse.json({ error: "Repo context is required" }, { status: 400 })
 
         const normalizedWalletAddress = requireWalletAddress(walletAddress)
@@ -21,6 +21,7 @@ export async function POST(req: Request) {
             agentType: "github",
             inputPrompt: `Full repository review for ${owner}/${repo}`,
             status: "pending",
+            blockchain,
         })
         taskId = task.id
 
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
             taskId,
             status: "completed",
             outputResult: { analysis, owner, repo },
+            blockchain,
         })
         await createAgentRun(taskId, { stage: "github-review", status: "completed", owner, repo }, Date.now() - startedAt)
 

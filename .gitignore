@@ -69,3 +69,13 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Soroban / Stellar smart contract artifacts
+contracts/**/target/
+contracts/**/*.wasm
+contracts/**/*.d
+contracts/**/Cargo.lock
+.soroban/
+
+# Stale test files
+test-rpc.js

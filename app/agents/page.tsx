@@ -22,6 +22,7 @@ import type { Components } from "react-markdown"
 import { useAgentContext } from "@/lib/AgentContext"
 import ConnectWalletButton from "@/components/wallet/ConnectWalletButton"
 import { useWalletContext } from "@/lib/WalletContext"
+import { finalizeEscrowedTask, prepareEscrowedTask, rollbackEscrowedTask } from "@/lib/soroban/taskLifecycle"
 import type { TaskRecord } from "@/types/tasks"
 
 const GitHubAgent = dynamic(() => import("@/components/agents/GitHubAgent"), {
@@ -104,7 +105,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function AgentsPage() {
     const { startAgentRun, completeAgentRun, failAgentRun } = useAgentContext()
-    const { walletAddress, shortWalletAddress, walletBalance } = useWalletContext()
+    const { walletAddress, shortWalletAddress, walletBalance, walletProviderId } = useWalletContext()
     const [selectedAgentId, setSelectedAgentId] = useState<WorkspaceAgentId>("github")
 
     const [codingPrompt, setCodingPrompt] = useState("")
@@ -112,12 +113,16 @@ export default function AgentsPage() {
     const [codingResult, setCodingResult] = useState<CodingResult | null>(null)
     const [codingState, setCodingState] = useState<RunState>("idle")
     const [codingError, setCodingError] = useState<string | null>(null)
+    const [codingRewardXlm, setCodingRewardXlm] = useState("0.2500000")
+    const [codingTxState, setCodingTxState] = useState<string | null>(null)
 
     const [documentFile, setDocumentFile] = useState<File | null>(null)
     const [documentQuestion, setDocumentQuestion] = useState("")
     const [documentResult, setDocumentResult] = useState<DocumentResult | null>(null)
     const [documentState, setDocumentState] = useState<RunState>("idle")
     const [documentError, setDocumentError] = useState<string | null>(null)
+    const [documentRewardXlm, setDocumentRewardXlm] = useState("0.1500000")
+    const [documentTxState, setDocumentTxState] = useState<string | null>(null)
     const [taskHistory, setTaskHistory] = useState<TaskRecord[]>([])
     const [taskHistoryLoading, setTaskHistoryLoading] = useState(false)
 
@@ -166,13 +171,28 @@ export default function AgentsPage() {
         setCodingState("running")
         setCodingError(null)
         setCodingResult(null)
+        setCodingTxState("Creating escrow transaction on Soroban...")
         startAgentRun("coding", `Generating build output for: ${codingPrompt}`)
 
+        let preparedTask: Awaited<ReturnType<typeof prepareEscrowedTask>> | null = null
         try {
+            preparedTask = await prepareEscrowedTask({
+                walletAddress,
+                walletProviderId,
+                rewardXlm: codingRewardXlm,
+                agentType: "coding",
+            })
+
+            setCodingTxState("Escrow created. Running the coding agent off-chain...")
             const response = await fetch("/api/run-coding-agent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: codingPrompt, language: codingLanguage, walletAddress }),
+                body: JSON.stringify({
+                    prompt: codingPrompt,
+                    language: codingLanguage,
+                    walletAddress,
+                    blockchain: preparedTask.blockchainPayload,
+                }),
             })
             const data = await response.json()
             if (!response.ok) throw new Error(data.error ?? "Coding agent failed")
@@ -196,11 +216,30 @@ export default function AgentsPage() {
                 throw new Error("Coding agent returned an incomplete payload.")
             }
 
+            setCodingTxState("Off-chain work finished. Confirming on-chain completion...")
+            await finalizeEscrowedTask({
+                taskId: data.taskId,
+                walletAddress,
+                walletProviderId,
+                onChainTaskId: preparedTask.onChainTaskId,
+                blockchainPayload: preparedTask.blockchainPayload,
+            })
+            setCodingTxState("On-chain completion confirmed.")
             setCodingState("done")
             completeAgentRun("coding", `Prepared ${data.projectId} for handoff and follow-on integration.`)
         } catch (error: unknown) {
             const message = getErrorMessage(error, "Coding agent failed")
             setCodingError(message)
+            if (preparedTask) {
+                setCodingTxState("Rolling back escrowed reward...")
+                await rollbackEscrowedTask({
+                    walletAddress,
+                    walletProviderId,
+                    onChainTaskId: preparedTask.onChainTaskId,
+                    blockchainPayload: preparedTask.blockchainPayload,
+                }).catch(() => undefined)
+            }
+            setCodingTxState(null)
             setCodingState("error")
             failAgentRun("coding", message)
         }
@@ -212,13 +251,22 @@ export default function AgentsPage() {
         setDocumentState("running")
         setDocumentError(null)
         setDocumentResult(null)
+        setDocumentTxState("Creating escrow transaction on Soroban...")
         startAgentRun("document", `Analyzing ${documentFile.name}`)
 
+        let preparedTask: Awaited<ReturnType<typeof prepareEscrowedTask>> | null = null
         try {
+            preparedTask = await prepareEscrowedTask({
+                walletAddress,
+                walletProviderId,
+                rewardXlm: documentRewardXlm,
+                agentType: "document",
+            })
             const formData = new FormData()
             formData.append("file", documentFile)
             formData.append("question", documentQuestion)
             formData.append("walletAddress", walletAddress)
+            formData.append("blockchain", JSON.stringify(preparedTask.blockchainPayload))
 
             const response = await fetch("/api/analyze-document", {
                 method: "POST",
@@ -233,11 +281,30 @@ export default function AgentsPage() {
                 analysis: data.analysis,
                 truncated: Boolean(data.truncated),
             })
+            setDocumentTxState("Off-chain work finished. Confirming on-chain completion...")
+            await finalizeEscrowedTask({
+                taskId: data.taskId,
+                walletAddress,
+                walletProviderId,
+                onChainTaskId: preparedTask.onChainTaskId,
+                blockchainPayload: preparedTask.blockchainPayload,
+            })
+            setDocumentTxState("On-chain completion confirmed.")
             setDocumentState("done")
             completeAgentRun("document", `Analyzed ${data.fileName} and prepared a concise brief.`)
         } catch (error: unknown) {
             const message = getErrorMessage(error, "Document analysis failed")
             setDocumentError(message)
+            if (preparedTask) {
+                setDocumentTxState("Rolling back escrowed reward...")
+                await rollbackEscrowedTask({
+                    walletAddress,
+                    walletProviderId,
+                    onChainTaskId: preparedTask.onChainTaskId,
+                    blockchainPayload: preparedTask.blockchainPayload,
+                }).catch(() => undefined)
+            }
+            setDocumentTxState(null)
             setDocumentState("error")
             failAgentRun("document", message)
         }
@@ -344,7 +411,11 @@ export default function AgentsPage() {
                                             </span>
                                         </div>
                                         <div className="mt-2 text-sm text-foreground-soft">{task.input_prompt}</div>
-                                        <div className="mt-2 text-xs text-muted">{new Date(task.created_at).toLocaleString()}</div>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+                                            <span>{new Date(task.created_at).toLocaleString()}</span>
+                                            {task.reward_stroops && <span>Reward: {(Number(task.reward_stroops) / 10_000_000).toFixed(7)} XLM</span>}
+                                            {task.on_chain_status !== "uninitialized" && <span>Chain: {task.on_chain_status}</span>}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -396,6 +467,17 @@ export default function AgentsPage() {
                                         </select>
                                     </div>
 
+                                    <div>
+                                        <label className="mb-2 block text-sm font-medium text-foreground">Reward (XLM)</label>
+                                        <input
+                                            value={codingRewardXlm}
+                                            onChange={(event) => setCodingRewardXlm(event.target.value)}
+                                            inputMode="decimal"
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                        />
+                                        <p className="mt-2 text-xs text-muted">Escrowed on Soroban before the coding agent runs, then released back on completion.</p>
+                                    </div>
+
                                     <div className="flex flex-wrap gap-3">
                                         <button
                                             onClick={() => void runCodingAgent()}
@@ -419,6 +501,7 @@ export default function AgentsPage() {
                                     </div>
 
                                     {codingError && <ErrorBox message={codingError} />}
+                                    {codingTxState && <InfoBox message={codingTxState} />}
                                     {!walletAddress && (
                                         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
                                             Connect a wallet before generating code artifacts.
@@ -536,6 +619,17 @@ export default function AgentsPage() {
                                         />
                                     </div>
 
+                                    <div>
+                                        <label className="mb-2 block text-sm font-medium text-foreground">Reward (XLM)</label>
+                                        <input
+                                            value={documentRewardXlm}
+                                            onChange={(event) => setDocumentRewardXlm(event.target.value)}
+                                            inputMode="decimal"
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                        />
+                                        <p className="mt-2 text-xs text-muted">Escrowed on Soroban before the document task starts.</p>
+                                    </div>
+
                                     <div className="flex flex-wrap gap-3">
                                         <button
                                             onClick={() => void runDocumentAgent()}
@@ -560,6 +654,7 @@ export default function AgentsPage() {
                                     </div>
 
                                     {documentError && <ErrorBox message={documentError} />}
+                                    {documentTxState && <InfoBox message={documentTxState} />}
                                     {!walletAddress && (
                                         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
                                             Connect a wallet before uploading and analyzing documents.
@@ -677,6 +772,14 @@ function ErrorBox({ message }: { message: string }) {
                 <AlertCircle size={15} className="mt-0.5 shrink-0" />
                 <span>{message}</span>
             </div>
+        </div>
+    )
+}
+
+function InfoBox({ message }: { message: string }) {
+    return (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground-soft">
+            {message}
         </div>
     )
 }

@@ -1,6 +1,7 @@
 export type AgentType = "github" | "coding" | "document"
 
 export type TaskStatus = "pending" | "completed" | "failed"
+export type OnChainTaskStatus = "uninitialized" | "pending" | "completed" | "cancelled" | "failed"
 
 export type CodingTaskOutput =
     | {
@@ -28,5 +29,12 @@ export type TaskRecord = {
     input_prompt: string
     output_result: TaskOutputResult
     status: TaskStatus
+    on_chain_task_id: string | null
+    reward_stroops: string | null
+    contract_id: string | null
+    on_chain_status: OnChainTaskStatus
+    create_tx_hash: string | null
+    complete_tx_hash: string | null
+    cancel_tx_hash: string | null
     created_at: string
 }

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json()
-        const { prompt, language, walletAddress } = body
+        const { prompt, language, walletAddress, blockchain } = body
 
         if (!prompt || typeof prompt !== "string") {
             return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
             agentType: "coding",
             inputPrompt: prompt,
             status: "pending",
+            blockchain,
         })
         taskId = task.id
 
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
             taskId,
             status: "completed",
             outputResult,
+            blockchain,
         })
         await createAgentRun(taskId, { stage: "coding-generation", status: "completed" }, Date.now() - startedAt)
 

@@ -19,6 +19,7 @@ import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
 import { useAgentContext } from "@/lib/AgentContext"
 import { useWalletContext } from "@/lib/WalletContext"
+import { finalizeEscrowedTask, prepareEscrowedTask, rollbackEscrowedTask } from "@/lib/soroban/taskLifecycle"
 import {
     clearGitHubSession,
     getGitHubSession,
@@ -59,7 +60,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function GitHubAgent() {
-    const { walletAddress, shortWalletAddress } = useWalletContext()
+    const { walletAddress, shortWalletAddress, walletProviderId } = useWalletContext()
     const { startAgentRun, completeAgentRun, failAgentRun, logAgentEvent } = useAgentContext()
     const [platformStatus, setPlatformStatus] = useState<PlatformStatus | null>(null)
     const [ghUser, setGhUser] = useState<GHUser | null>(null)
@@ -74,6 +75,8 @@ export default function GitHubAgent() {
     const [connecting, setConnecting] = useState(false)
     const [indexing, setIndexing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [rewardXlm, setRewardXlm] = useState("0.2000000")
+    const [txState, setTxState] = useState<string | null>(null)
     const lastLoadedTokenRef = useRef<string | null>(null)
 
     const githubConfigured = Boolean(platformStatus?.tools?.github?.configured)
@@ -228,9 +231,17 @@ export default function GitHubAgent() {
         setIndexing(true)
         setError(null)
         setResult("")
+        setTxState("Creating escrow transaction on Soroban...")
         startAgentRun("github", `Indexing ${selectedRepo.fullName}`)
 
+        let preparedTask: Awaited<ReturnType<typeof prepareEscrowedTask>> | null = null
         try {
+            preparedTask = await prepareEscrowedTask({
+                walletAddress: walletAddress!,
+                walletProviderId,
+                rewardXlm,
+                agentType: "github",
+            })
             const [owner, repo] = selectedRepo.fullName.split("/")
             const res = await fetch("/api/fetch-repo", {
                 method: "POST",
@@ -238,13 +249,28 @@ export default function GitHubAgent() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${githubAccessToken}`,
                 },
-                body: JSON.stringify({ owner, repo, ref: selectedRepo.defaultBranch, walletAddress }),
+                body: JSON.stringify({
+                    owner,
+                    repo,
+                    ref: selectedRepo.defaultBranch,
+                    walletAddress,
+                    blockchain: preparedTask.blockchainPayload,
+                }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "Failed to index repository")
 
             setRepoContext(data.context)
             setRepoFiles(data.files)
+            setTxState("Off-chain indexing finished. Confirming on-chain completion...")
+            await finalizeEscrowedTask({
+                taskId: data.taskId,
+                walletAddress: walletAddress!,
+                walletProviderId,
+                onChainTaskId: preparedTask.onChainTaskId,
+                blockchainPayload: preparedTask.blockchainPayload,
+            })
+            setTxState("On-chain completion confirmed.")
             completeAgentRun(
                 "github",
                 `Indexed ${selectedRepo.fullName} and loaded ${data.files?.length ?? 0} repository files.`,
@@ -253,6 +279,16 @@ export default function GitHubAgent() {
         } catch (err) {
             const message = getErrorMessage(err, "Failed to index repository")
             setError(message)
+            if (preparedTask && walletAddress) {
+                setTxState("Rolling back escrowed reward...")
+                await rollbackEscrowedTask({
+                    walletAddress,
+                    walletProviderId,
+                    onChainTaskId: preparedTask.onChainTaskId,
+                    blockchainPayload: preparedTask.blockchainPayload,
+                }).catch(() => undefined)
+            }
+            setTxState(null)
             failAgentRun("github", message)
         } finally {
             setIndexing(false)
@@ -264,9 +300,17 @@ export default function GitHubAgent() {
 
         setLoading(true)
         setError(null)
+        setTxState("Creating escrow transaction on Soroban...")
         startAgentRun("github", `Analyzing ${selectedRepo.fullName} for wallet ${walletAddress}: ${prompt}`)
 
+        let preparedTask: Awaited<ReturnType<typeof prepareEscrowedTask>> | null = null
         try {
+            preparedTask = await prepareEscrowedTask({
+                walletAddress,
+                walletProviderId,
+                rewardXlm,
+                agentType: "github",
+            })
             const [owner, repo] = selectedRepo.fullName.split("/")
             const res = await fetch("/api/ask-repo", {
                 method: "POST",
@@ -277,15 +321,35 @@ export default function GitHubAgent() {
                     question: prompt,
                     context: repoContext,
                     walletAddress,
+                    blockchain: preparedTask.blockchainPayload,
                 }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "GitHub agent failed")
             setResult(data.answer)
+            setTxState("Off-chain analysis finished. Confirming on-chain completion...")
+            await finalizeEscrowedTask({
+                taskId: data.taskId,
+                walletAddress,
+                walletProviderId,
+                onChainTaskId: preparedTask.onChainTaskId,
+                blockchainPayload: preparedTask.blockchainPayload,
+            })
+            setTxState("On-chain completion confirmed.")
             completeAgentRun("github", `Completed repository prompt for ${selectedRepo.fullName}.`, 5)
         } catch (err) {
             const message = getErrorMessage(err, "GitHub agent failed")
             setError(message)
+            if (preparedTask) {
+                setTxState("Rolling back escrowed reward...")
+                await rollbackEscrowedTask({
+                    walletAddress,
+                    walletProviderId,
+                    onChainTaskId: preparedTask.onChainTaskId,
+                    blockchainPayload: preparedTask.blockchainPayload,
+                }).catch(() => undefined)
+            }
+            setTxState(null)
             failAgentRun("github", message)
         } finally {
             setLoading(false)
@@ -298,22 +362,49 @@ export default function GitHubAgent() {
 
         setLoading(true)
         setError(null)
+        setTxState("Creating escrow transaction on Soroban...")
         startAgentRun("github", `Running full repository review for ${selectedRepo.fullName} as ${walletAddress}`)
 
+        let preparedTask: Awaited<ReturnType<typeof prepareEscrowedTask>> | null = null
         try {
+            preparedTask = await prepareEscrowedTask({
+                walletAddress,
+                walletProviderId,
+                rewardXlm,
+                agentType: "github",
+            })
             const [owner, repo] = selectedRepo.fullName.split("/")
             const res = await fetch("/api/analyze-repo", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ owner, repo, context: repoContext, walletAddress }),
+                body: JSON.stringify({ owner, repo, context: repoContext, walletAddress, blockchain: preparedTask.blockchainPayload }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "Repository analysis failed")
             setResult(data.analysis)
+            setTxState("Off-chain review finished. Confirming on-chain completion...")
+            await finalizeEscrowedTask({
+                taskId: data.taskId,
+                walletAddress,
+                walletProviderId,
+                onChainTaskId: preparedTask.onChainTaskId,
+                blockchainPayload: preparedTask.blockchainPayload,
+            })
+            setTxState("On-chain completion confirmed.")
             completeAgentRun("github", `Completed full review for ${selectedRepo.fullName}.`, 6)
         } catch (err) {
             const message = getErrorMessage(err, "Repository analysis failed")
             setError(message)
+            if (preparedTask) {
+                setTxState("Rolling back escrowed reward...")
+                await rollbackEscrowedTask({
+                    walletAddress,
+                    walletProviderId,
+                    onChainTaskId: preparedTask.onChainTaskId,
+                    blockchainPayload: preparedTask.blockchainPayload,
+                }).catch(() => undefined)
+            }
+            setTxState(null)
             failAgentRun("github", message)
         } finally {
             setLoading(false)
@@ -359,6 +450,20 @@ export default function GitHubAgent() {
                         <span className="text-[11px] font-medium uppercase tracking-wider text-muted">Step 1 - Connect GitHub</span>
                     </div>
                     <div className="space-y-3 p-4">
+                        <div>
+                            <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-muted">Reward (XLM)</label>
+                            <input
+                                value={rewardXlm}
+                                onChange={(event) => setRewardXlm(event.target.value)}
+                                inputMode="decimal"
+                                className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                style={{ minHeight: 44 }}
+                            />
+                            <p className="mt-2 text-[12px] leading-relaxed text-foreground-soft sm:text-xs">
+                                Escrowed on Soroban before GitHub indexing or analysis begins.
+                            </p>
+                        </div>
+
                         {!githubConfigured && (
                             <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[13px] leading-relaxed text-amber-700 dark:text-amber-300 sm:text-sm">
                                 GitHub OAuth is not configured. Add the client ID, secret, and callback URL in the server environment first.
@@ -588,6 +693,12 @@ export default function GitHubAgent() {
                         ))}
                     </div>
                 </details>
+            )}
+
+            {txState && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-[13px] text-foreground-soft sm:text-sm">
+                    {txState}
+                </div>
             )}
         </div>
     )

@@ -1,5 +1,5 @@
 import { AgentExecutionError } from "@/lib/agents/shared"
-import type { AgentType, TaskStatus } from "@/types/tasks"
+import type { AgentType, OnChainTaskStatus, TaskStatus } from "@/types/tasks"
 
 const WALLET_ADDRESS_REGEX = /^[A-Z2-7]{32,70}$/i
 
@@ -33,4 +33,18 @@ export function requireTaskStatus(value: unknown): TaskStatus {
     }
 
     throw new AgentExecutionError("INVALID_TASK_STATUS", "A valid task status is required.", 400)
+}
+
+export function requireOnChainTaskStatus(value: unknown): OnChainTaskStatus {
+    if (
+        value === "uninitialized" ||
+        value === "pending" ||
+        value === "completed" ||
+        value === "cancelled" ||
+        value === "failed"
+    ) {
+        return value
+    }
+
+    throw new AgentExecutionError("INVALID_ONCHAIN_STATUS", "A valid on-chain task status is required.", 400)
 }

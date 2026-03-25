@@ -16,6 +16,15 @@ export async function POST(req: Request) {
         const file = formData.get("file")
         const question = formData.get("question")
         const walletAddress = formData.get("walletAddress")
+        const blockchain = (() => {
+            const raw = formData.get("blockchain")
+            if (typeof raw !== "string" || !raw.trim()) return undefined
+            try {
+                return JSON.parse(raw) as Record<string, unknown>
+            } catch {
+                return undefined
+            }
+        })()
 
         if (!(file instanceof File)) {
             return NextResponse.json({ error: "A document file is required." }, { status: 400 })
@@ -31,6 +40,7 @@ export async function POST(req: Request) {
                 ? `${file.name}: ${question.trim()}`
                 : `Analyze document ${file.name}`,
             status: "pending",
+            blockchain,
         })
         taskId = task.id
 
@@ -46,6 +56,7 @@ export async function POST(req: Request) {
             taskId,
             status: "completed",
             outputResult: result,
+            blockchain,
         })
         await createAgentRun(taskId, { stage: "document-analysis", status: "completed", fileName: file.name }, Date.now() - startedAt)
 

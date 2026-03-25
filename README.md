@@ -48,6 +48,8 @@ The Browser Automation Agent plans and performs controlled browser actions such 
 ## Product Feel
 
 WorkingGent is designed as a practical operator workspace rather than a technical dashboard. The experience stays centered on outcomes: ask, run, review, and continue.
+Contract ID: CDXU5JFTCBO4AKPI2TVQ2BGC352IYXMOIIGPRYXGK247HHMOALKBLJUP
+XLM SAC ID: CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
 
 ## Developer
 

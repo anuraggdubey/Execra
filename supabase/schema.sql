@@ -16,6 +16,13 @@ create table if not exists public.tasks (
     input_prompt text not null,
     output_result jsonb,
     status text not null check (status in ('pending', 'completed', 'failed')),
+    on_chain_task_id bigint,
+    reward_stroops bigint,
+    contract_id text,
+    on_chain_status text not null default 'uninitialized' check (on_chain_status in ('uninitialized', 'pending', 'completed', 'cancelled', 'failed')),
+    create_tx_hash text,
+    complete_tx_hash text,
+    cancel_tx_hash text,
     created_at timestamptz not null default now()
 );
 

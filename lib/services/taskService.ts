@@ -2,22 +2,41 @@ import { AgentExecutionError } from "@/lib/agents/shared"
 import { getSupabaseServerClient } from "@/lib/supabaseServer"
 import {
     requireAgentType,
+    requireOnChainTaskStatus,
     requireTaskStatus,
     requireWalletAddress,
 } from "@/lib/services/validation"
-import type { TaskOutputResult, TaskRecord, TaskStatus } from "@/types/tasks"
+import type { OnChainTaskStatus, TaskOutputResult, TaskRecord, TaskStatus } from "@/types/tasks"
 
 type CreateTaskInput = {
     walletAddress: unknown
     agentType: unknown
     inputPrompt: unknown
     status?: unknown
+    blockchain?: {
+        onChainTaskId?: string | null
+        rewardStroops?: string | null
+        contractId?: string | null
+        onChainStatus?: OnChainTaskStatus
+        createTxHash?: string | null
+        completeTxHash?: string | null
+        cancelTxHash?: string | null
+    }
 }
 
 type UpdateTaskInput = {
     taskId: string
     outputResult?: TaskOutputResult
     status: unknown
+    blockchain?: {
+        onChainTaskId?: string | null
+        rewardStroops?: string | null
+        contractId?: string | null
+        onChainStatus?: OnChainTaskStatus
+        createTxHash?: string | null
+        completeTxHash?: string | null
+        cancelTxHash?: string | null
+    }
 }
 
 function normalizeError(error: unknown, fallback: string) {
@@ -38,8 +57,15 @@ export async function createTask(input: CreateTaskInput) {
             agent_type: agentType,
             input_prompt: inputPrompt,
             status,
+            on_chain_task_id: input.blockchain?.onChainTaskId ?? null,
+            reward_stroops: input.blockchain?.rewardStroops ?? null,
+            contract_id: input.blockchain?.contractId ?? null,
+            on_chain_status: input.blockchain?.onChainStatus ?? "uninitialized",
+            create_tx_hash: input.blockchain?.createTxHash ?? null,
+            complete_tx_hash: input.blockchain?.completeTxHash ?? null,
+            cancel_tx_hash: input.blockchain?.cancelTxHash ?? null,
         })
-        .select("id, wallet_address, agent_type, input_prompt, output_result, status, created_at")
+        .select("id, wallet_address, agent_type, input_prompt, output_result, status, on_chain_task_id, reward_stroops, contract_id, on_chain_status, create_tx_hash, complete_tx_hash, cancel_tx_hash, created_at")
         .single()
 
     if (error) {
@@ -56,17 +82,36 @@ export async function updateTask(input: UpdateTaskInput) {
     const updates: {
         output_result?: TaskOutputResult
         status: TaskStatus
+        on_chain_task_id?: string | null
+        reward_stroops?: string | null
+        contract_id?: string | null
+        on_chain_status?: OnChainTaskStatus
+        create_tx_hash?: string | null
+        complete_tx_hash?: string | null
+        cancel_tx_hash?: string | null
     } = { status }
 
     if (input.outputResult !== undefined) {
         updates.output_result = input.outputResult
     }
 
+    if (input.blockchain) {
+        if ("onChainTaskId" in input.blockchain) updates.on_chain_task_id = input.blockchain.onChainTaskId ?? null
+        if ("rewardStroops" in input.blockchain) updates.reward_stroops = input.blockchain.rewardStroops ?? null
+        if ("contractId" in input.blockchain) updates.contract_id = input.blockchain.contractId ?? null
+        if ("onChainStatus" in input.blockchain && input.blockchain.onChainStatus !== undefined) {
+            updates.on_chain_status = requireOnChainTaskStatus(input.blockchain.onChainStatus)
+        }
+        if ("createTxHash" in input.blockchain) updates.create_tx_hash = input.blockchain.createTxHash ?? null
+        if ("completeTxHash" in input.blockchain) updates.complete_tx_hash = input.blockchain.completeTxHash ?? null
+        if ("cancelTxHash" in input.blockchain) updates.cancel_tx_hash = input.blockchain.cancelTxHash ?? null
+    }
+
     const { data, error } = await supabase
         .from("tasks")
         .update(updates)
         .eq("id", input.taskId)
-        .select("id, wallet_address, agent_type, input_prompt, output_result, status, created_at")
+        .select("id, wallet_address, agent_type, input_prompt, output_result, status, on_chain_task_id, reward_stroops, contract_id, on_chain_status, create_tx_hash, complete_tx_hash, cancel_tx_hash, created_at")
         .single()
 
     if (error) {
@@ -110,7 +155,7 @@ export async function getUserTasks(walletAddressInput: unknown, limit = 20) {
 
     const { data, error } = await supabase
         .from("tasks")
-        .select("id, wallet_address, agent_type, input_prompt, output_result, status, created_at")
+        .select("id, wallet_address, agent_type, input_prompt, output_result, status, on_chain_task_id, reward_stroops, contract_id, on_chain_status, create_tx_hash, complete_tx_hash, cancel_tx_hash, created_at")
         .eq("wallet_address", walletAddress)
         .order("created_at", { ascending: false })
         .limit(limit)
@@ -127,7 +172,7 @@ export async function getRecentTasks(limit = 10) {
 
     const { data, error } = await supabase
         .from("tasks")
-        .select("id, wallet_address, agent_type, input_prompt, output_result, status, created_at")
+        .select("id, wallet_address, agent_type, input_prompt, output_result, status, on_chain_task_id, reward_stroops, contract_id, on_chain_status, create_tx_hash, complete_tx_hash, cancel_tx_hash, created_at")
         .order("created_at", { ascending: false })
         .limit(limit)
 
@@ -143,7 +188,7 @@ export async function getTaskById(taskId: string) {
 
     const { data, error } = await supabase
         .from("tasks")
-        .select("id, wallet_address, agent_type, input_prompt, output_result, status, created_at")
+        .select("id, wallet_address, agent_type, input_prompt, output_result, status, on_chain_task_id, reward_stroops, contract_id, on_chain_status, create_tx_hash, complete_tx_hash, cancel_tx_hash, created_at")
         .eq("id", taskId)
         .single()
 

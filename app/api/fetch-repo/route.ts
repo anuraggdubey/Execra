@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json()
-        const { owner, repo, ref, walletAddress } = body
+        const { owner, repo, ref, walletAddress, blockchain } = body
         const accessToken = readGitHubAccessToken(req)
 
         if (!accessToken || !owner || !repo) {
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
             agentType: "github",
             inputPrompt: `Index repository ${owner}/${repo}${ref ? ` @ ${ref}` : ""}`,
             status: "pending",
+            blockchain,
         })
         taskId = task.id
 
@@ -35,10 +36,11 @@ export async function POST(req: Request) {
             taskId,
             status: "completed",
             outputResult: result,
+            blockchain,
         })
         await createAgentRun(taskId, { stage: "github-index", status: "completed", owner, repo, ref }, Date.now() - startedAt)
 
-        return NextResponse.json({ success: true, ...result })
+        return NextResponse.json({ success: true, taskId, ...result })
     } catch (err: unknown) {
         if (taskId) {
             const message = err instanceof Error ? err.message : "Failed to fetch repo"

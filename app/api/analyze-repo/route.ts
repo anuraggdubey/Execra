@@ -1,16 +1,55 @@
 import { NextResponse } from "next/server"
 import { analyzeRepository } from "@/lib/agents/githubAgentService"
+import { AgentExecutionError } from "@/lib/agents/shared"
+import { createAgentRun, createTask, failTask, updateTask } from "@/lib/services/taskService"
+import { upsertUserByWallet } from "@/lib/services/userService"
+import { requireWalletAddress } from "@/lib/services/validation"
 
 export async function POST(req: Request) {
+    let taskId: string | null = null
+    const startedAt = Date.now()
+
     try {
-        const { owner, repo, context } = await req.json()
+        const { owner, repo, context, walletAddress } = await req.json()
         if (!context) return NextResponse.json({ error: "Repo context is required" }, { status: 400 })
+
+        const normalizedWalletAddress = requireWalletAddress(walletAddress)
+        await upsertUserByWallet(normalizedWalletAddress)
+
+        const task = await createTask({
+            walletAddress: normalizedWalletAddress,
+            agentType: "github",
+            inputPrompt: `Full repository review for ${owner}/${repo}`,
+            status: "pending",
+        })
+        taskId = task.id
+
+        const analysis = await analyzeRepository({ owner, repo, context })
+        await updateTask({
+            taskId,
+            status: "completed",
+            outputResult: { analysis, owner, repo },
+        })
+        await createAgentRun(taskId, { stage: "github-review", status: "completed", owner, repo }, Date.now() - startedAt)
 
         return NextResponse.json({
             success: true,
-            analysis: await analyzeRepository({ owner, repo, context }),
+            taskId,
+            analysis,
         })
     } catch (err: unknown) {
+        if (taskId) {
+            const message = err instanceof Error ? err.message : "Analysis failed"
+            await Promise.allSettled([
+                failTask(taskId, message),
+                createAgentRun(taskId, { stage: "github-review", status: "failed", message }, Date.now() - startedAt),
+            ])
+        }
+
+        if (err instanceof AgentExecutionError) {
+            return NextResponse.json({ error: err.message, code: err.code, details: err.details }, { status: err.status })
+        }
+
         return NextResponse.json({ error: err instanceof Error ? err.message : "Analysis failed" }, { status: 500 })
     }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import {
     AlertCircle,
@@ -22,6 +22,7 @@ import type { Components } from "react-markdown"
 import { useAgentContext } from "@/lib/AgentContext"
 import ConnectWalletButton from "@/components/wallet/ConnectWalletButton"
 import { useWalletContext } from "@/lib/WalletContext"
+import type { TaskRecord } from "@/types/tasks"
 
 const GitHubAgent = dynamic(() => import("@/components/agents/GitHubAgent"), {
     ssr: false,
@@ -117,11 +118,47 @@ export default function AgentsPage() {
     const [documentResult, setDocumentResult] = useState<DocumentResult | null>(null)
     const [documentState, setDocumentState] = useState<RunState>("idle")
     const [documentError, setDocumentError] = useState<string | null>(null)
+    const [taskHistory, setTaskHistory] = useState<TaskRecord[]>([])
+    const [taskHistoryLoading, setTaskHistoryLoading] = useState(false)
 
     const selectedAgent = useMemo(
         () => AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0],
         [selectedAgentId]
     )
+
+    useEffect(() => {
+        if (!walletAddress) {
+            setTaskHistory([])
+            return
+        }
+
+        let cancelled = false
+
+        const loadTaskHistory = async () => {
+            setTaskHistoryLoading(true)
+            try {
+                const response = await fetch(`/api/tasks?walletAddress=${encodeURIComponent(walletAddress)}&limit=8`)
+                const data = await response.json()
+                if (!response.ok) throw new Error(data.error ?? "Failed to load tasks")
+                if (!cancelled) setTaskHistory(Array.isArray(data.tasks) ? data.tasks : [])
+            } catch (error) {
+                console.error("[tasks] Failed to fetch task history", error)
+                if (!cancelled) setTaskHistory([])
+            } finally {
+                if (!cancelled) setTaskHistoryLoading(false)
+            }
+        }
+
+        void loadTaskHistory()
+        const intervalId = window.setInterval(() => {
+            void loadTaskHistory()
+        }, 15000)
+
+        return () => {
+            cancelled = true
+            window.clearInterval(intervalId)
+        }
+    }, [walletAddress, codingResult, documentResult])
 
     const runCodingAgent = async () => {
         if (!walletAddress || !codingPrompt.trim() || codingState === "running") return
@@ -135,7 +172,7 @@ export default function AgentsPage() {
             const response = await fetch("/api/run-coding-agent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: codingPrompt, language: codingLanguage }),
+                body: JSON.stringify({ prompt: codingPrompt, language: codingLanguage, walletAddress }),
             })
             const data = await response.json()
             if (!response.ok) throw new Error(data.error ?? "Coding agent failed")
@@ -181,6 +218,7 @@ export default function AgentsPage() {
             const formData = new FormData()
             formData.append("file", documentFile)
             formData.append("question", documentQuestion)
+            formData.append("walletAddress", walletAddress)
 
             const response = await fetch("/api/analyze-document", {
                 method: "POST",
@@ -268,6 +306,51 @@ export default function AgentsPage() {
                 </aside>
 
                 <div className="space-y-6">
+                    <section className="panel p-5">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <div className="eyebrow">Task History</div>
+                                <h2 className="mt-1 text-lg font-semibold text-foreground">Supabase-backed recent tasks</h2>
+                            </div>
+                            <StatusPill state={taskHistoryLoading ? "running" : "idle"} />
+                        </div>
+
+                        {!walletAddress && (
+                            <p className="mt-4 text-sm text-foreground-soft">
+                                Connect a wallet to load persisted tasks for this workspace identity.
+                            </p>
+                        )}
+
+                        {walletAddress && taskHistory.length === 0 && !taskHistoryLoading && (
+                            <p className="mt-4 text-sm text-foreground-soft">
+                                No persisted tasks yet. Run any agent and the task will appear here.
+                            </p>
+                        )}
+
+                        {taskHistory.length > 0 && (
+                            <div className="mt-4 grid gap-3">
+                                {taskHistory.map((task) => (
+                                    <div key={task.id} className="rounded-xl border border-border bg-background p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div className="text-sm font-semibold capitalize text-foreground">{task.agent_type} task</div>
+                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                                                task.status === "completed"
+                                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                                    : task.status === "failed"
+                                                        ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                        : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                            }`}>
+                                                {task.status}
+                                            </span>
+                                        </div>
+                                        <div className="mt-2 text-sm text-foreground-soft">{task.input_prompt}</div>
+                                        <div className="mt-2 text-xs text-muted">{new Date(task.created_at).toLocaleString()}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+
                     {selectedAgent.id === "github" && <GitHubAgent />}
 
                     {selectedAgent.id === "coding" && (

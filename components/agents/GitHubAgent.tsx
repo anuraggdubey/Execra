@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
     AlertCircle,
     BookOpenText,
@@ -74,6 +74,7 @@ export default function GitHubAgent() {
     const [connecting, setConnecting] = useState(false)
     const [indexing, setIndexing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const lastLoadedTokenRef = useRef<string | null>(null)
 
     const githubConfigured = Boolean(platformStatus?.tools?.github?.configured)
 
@@ -111,6 +112,7 @@ export default function GitHubAgent() {
             const res = await fetch("/api/connect-github", {
                 headers: {
                     Authorization: `Bearer ${githubAccessToken}`,
+                    "x-wallet-address": walletAddress ?? "",
                 },
             })
             const data = await res.json()
@@ -132,6 +134,7 @@ export default function GitHubAgent() {
             const message = getErrorMessage(err, "Failed to connect GitHub")
             setError(message)
             resetWorkspace()
+            lastLoadedTokenRef.current = null
             if (walletAddress) clearGitHubSession(walletAddress)
         } finally {
             setConnecting(false)
@@ -141,12 +144,15 @@ export default function GitHubAgent() {
     useEffect(() => {
         setError(null)
         resetWorkspace()
+        lastLoadedTokenRef.current = null
         setGitHubAccessToken(getGitHubSession(walletAddress)?.accessToken ?? null)
-        if (!walletAddress) return
-    }, [loadGitHubConnection, resetWorkspace, walletAddress])
+    }, [resetWorkspace, walletAddress])
 
     useEffect(() => {
         if (!walletAddress || !githubAccessToken) return
+        if (lastLoadedTokenRef.current === githubAccessToken) return
+
+        lastLoadedTokenRef.current = githubAccessToken
         void loadGitHubConnection()
     }, [githubAccessToken, loadGitHubConnection, walletAddress])
 
@@ -185,18 +191,32 @@ export default function GitHubAgent() {
         const popup = window.open(
             `/api/auth/github?wallet=${encodeURIComponent(walletAddress)}`,
             "workinggent_github_oauth",
-            "width=620,height=760,noopener,noreferrer"
+            "width=620,height=760"
         )
 
         if (!popup) {
             setConnecting(false)
             setError("The GitHub popup was blocked by the browser.")
+            return
         }
+
+        const popupWatcher = window.setInterval(() => {
+            if (!popup.closed) return
+
+            window.clearInterval(popupWatcher)
+            setConnecting(false)
+        }, 500)
     }, [walletAddress])
 
     const disconnect = useCallback(async () => {
         if (!walletAddress) return
         clearGitHubSession(walletAddress)
+        void fetch("/api/users/github-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ walletAddress, githubConnected: false }),
+        }).catch(() => undefined)
+        lastLoadedTokenRef.current = null
         setGitHubAccessToken(null)
         resetWorkspace()
         setError(null)
@@ -218,7 +238,7 @@ export default function GitHubAgent() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${githubAccessToken}`,
                 },
-                body: JSON.stringify({ owner, repo }),
+                body: JSON.stringify({ owner, repo, ref: selectedRepo.defaultBranch, walletAddress }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "Failed to index repository")
@@ -256,6 +276,7 @@ export default function GitHubAgent() {
                     repo,
                     question: prompt,
                     context: repoContext,
+                    walletAddress,
                 }),
             })
             const data = await res.json()
@@ -284,7 +305,7 @@ export default function GitHubAgent() {
             const res = await fetch("/api/analyze-repo", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ owner, repo, context: repoContext }),
+                body: JSON.stringify({ owner, repo, context: repoContext, walletAddress }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error ?? "Repository analysis failed")
@@ -356,6 +377,7 @@ export default function GitHubAgent() {
                                     Wallet identity: <span className="font-medium text-foreground">{walletAddress}</span>
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={beginOAuth}
                                     disabled={connecting}
                                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
@@ -381,6 +403,7 @@ export default function GitHubAgent() {
                                     </div>
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={() => void disconnect()}
                                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-soft transition-colors hover:bg-surface-elevated"
                                     style={{ minHeight: 44 }}
@@ -422,6 +445,7 @@ export default function GitHubAgent() {
                         </select>
 
                         <button
+                            type="button"
                             onClick={() => void loadRepo()}
                             disabled={!selectedRepo || indexing || !ghUser}
                             className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-elevated disabled:opacity-50"
@@ -468,6 +492,7 @@ export default function GitHubAgent() {
                         <span className="text-[11px] font-medium uppercase tracking-wider text-muted">Step 3 - Ask the Agent</span>
                     </div>
                     <button
+                        type="button"
                         onClick={() => void runFullReview()}
                         disabled={!isReadyForPrompt || loading}
                         className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-foreground-soft transition-colors hover:bg-surface-elevated disabled:opacity-40"
@@ -505,6 +530,7 @@ export default function GitHubAgent() {
                         />
                         <div className="mt-3 flex gap-2">
                             <button
+                                type="button"
                                 onClick={() => void runPrompt()}
                                 disabled={!prompt.trim() || !isReadyForPrompt || loading}
                                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50 sm:flex-none"
@@ -514,6 +540,7 @@ export default function GitHubAgent() {
                                 Run Agent
                             </button>
                             <button
+                                type="button"
                                 onClick={() => {
                                     setPrompt("")
                                     setResult("")

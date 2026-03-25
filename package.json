@@ -6,12 +6,14 @@
     "dev": "node server.mjs",
     "build": "next build",
     "start": "node server.mjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:legacy-projects": "node scripts/importLegacyProjects.mjs"
   },
   "dependencies": {
     "@albedo-link/intent": "^0.13.0",
     "@creit.tech/xbull-wallet-connect": "^0.4.0",
     "@stellar/freighter-api": "^6.0.1",
+    "@supabase/supabase-js": "^2.100.0",
     "@types/archiver": "^7.0.0",
     "archiver": "^7.0.1",
     "express": "^5.2.1",

@@ -81,12 +81,13 @@ export async function connectGitHub(accessToken: string) {
     }
 }
 
-export async function fetchRepoContext(config: { accessToken: string; owner: string; repo: string }) {
+export async function fetchRepoContext(config: { accessToken: string; owner: string; repo: string; ref?: string }) {
     const tool = githubTool(config)
+    const treeRef = config.ref?.trim() || "HEAD"
 
     let treeData: GitHubTreeResponse
     try {
-        treeData = await tool.getTree("HEAD")
+        treeData = await tool.getTree(treeRef)
     } catch (error) {
         throw createToolError("githubTool", error, "Unable to fetch repository tree")
     }

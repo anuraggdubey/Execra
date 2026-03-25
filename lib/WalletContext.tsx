@@ -68,6 +68,19 @@ function writeWalletSession(session: WalletSession | null) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
 }
 
+async function persistWalletUser(walletAddress: string) {
+    const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress }),
+    })
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? "Failed to persist wallet user")
+    }
+}
+
 function formatWalletAddress(address: string | null) {
     if (!address) return null
     if (address.length <= 12) return address
@@ -133,6 +146,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         void refreshBalance()
     }, [refreshBalance])
 
+    useEffect(() => {
+        if (!isHydrated || !walletAddress) return
+
+        void persistWalletUser(walletAddress).catch((error) => {
+            console.error("[wallet] Failed to persist wallet user", error)
+        })
+    }, [isHydrated, walletAddress])
+
     const connectWallet = useCallback(async (walletId: SupportedWalletId) => {
         setIsConnecting(true)
         setWalletError(null)
@@ -142,6 +163,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             setWalletAddress(session.walletAddress)
             setWalletProviderId(session.walletProviderId)
             writeWalletSession(session)
+            await persistWalletUser(session.walletAddress)
 
             const balance = await fetchStellarTestnetBalance(session.walletAddress)
             setWalletBalance(balance)

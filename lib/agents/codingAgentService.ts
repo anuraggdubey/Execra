@@ -1,12 +1,16 @@
 import { completeWithOpenRouter } from "@/lib/llm/openrouter"
 import { AgentExecutionError, createLlmError } from "@/lib/agents/shared"
-import { fileTool } from "@/lib/tools/fileTool"
-import { previewTool } from "@/lib/tools/previewTool"
 
 export interface ProjectFiles {
     html: string
     css: string
     js: string
+}
+
+type SuggestedImage = {
+    label: string
+    query: string
+    url: string
 }
 
 const CODING_AGENT_SYSTEM_PROMPT = `You are a senior product engineer and visual frontend designer who only returns project code.
@@ -44,6 +48,77 @@ Code requirements:
 - Keep JavaScript framework-free and browser-ready.
 - Ensure the layout works on desktop and mobile.
 - Prefer refined typography, card systems, and polished states over novelty gimmicks.`
+
+const IMAGE_STOP_WORDS = new Set([
+    "a", "an", "and", "app", "build", "create", "dashboard", "design", "for", "from", "hero",
+    "landing", "make", "page", "show", "site", "that", "the", "this", "ui", "web", "website",
+    "with", "your",
+])
+
+function normalizeQuery(value: string) {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
+function deriveImageQueries(prompt: string) {
+    const normalized = normalizeQuery(prompt)
+    const words = normalized
+        .split(" ")
+        .filter((word) => word.length > 2 && !IMAGE_STOP_WORDS.has(word))
+
+    const uniqueWords = [...new Set(words)]
+    const base = uniqueWords.slice(0, 5).join(" ") || "modern workspace"
+    const categories = [
+        base,
+        `${base} interior`,
+        `${base} product`,
+        `${base} lifestyle`,
+    ]
+
+    return [...new Set(categories)].slice(0, 4)
+}
+
+function buildSuggestedImages(prompt: string): SuggestedImage[] {
+    const queries = deriveImageQueries(prompt)
+
+    return queries.map((query, index) => ({
+        label:
+            index === 0 ? "Hero image" :
+            index === 1 ? "Supporting image A" :
+            index === 2 ? "Supporting image B" :
+            "Gallery image",
+        query,
+        url: `/api/coding-images?q=${encodeURIComponent(query)}&slot=${index}`,
+    }))
+}
+
+function buildCodingUserPrompt(prompt: string) {
+    const suggestedImages = buildSuggestedImages(prompt)
+    const imageGuide = suggestedImages
+        .map((image) => `- ${image.label}: ${image.url} (query: ${image.query})`)
+        .join("\n")
+
+    return `Build this project.
+
+User request:
+${prompt}
+
+Default quality expectations:
+- Make it visually advanced and product-grade.
+- Add rich structure, not a minimal mockup.
+- If the request is for a dashboard, admin panel, analytics page, workspace, or SaaS UI, make it dense, polished, and interactive by default.
+- If the request is visually descriptive or marketing-led, use 2-4 relevant online images from the provided URLs so the preview feels real on first load.
+- When you use images, integrate them intentionally in hero areas, cards, gallery blocks, product sections, or article/media panels.
+- Do not leave empty image placeholders or broken asset references.
+
+Available WorkingGent image URLs:
+${imageGuide}
+
+Return only the three required files.`
+}
 
 export function parseAgentOutput(text: string): ProjectFiles {
     const htmlMatch = text.match(/```(?:index\.html|html)\s*([\s\S]*?)```/i)
@@ -130,7 +205,7 @@ export async function runCodingAgent(prompt: string, language?: string) {
         try {
             raw = await completeWithOpenRouter({
                 system: CODING_AGENT_SYSTEM_PROMPT,
-                user: `Build this project.\n\nUser request:\n${prompt}\n\nDefault quality expectations:\n- Make it visually advanced and product-grade.\n- Add rich structure, not a minimal mockup.\n- If the request is for a dashboard, admin panel, analytics page, workspace, or SaaS UI, make it dense, polished, and interactive by default.\n- Return only the three required files.`,
+                user: buildCodingUserPrompt(prompt),
                 maxTokens: 8000,
                 temperature: 0.7,
             })
@@ -139,19 +214,9 @@ export async function runCodingAgent(prompt: string, language?: string) {
         }
 
         const files = parseAgentOutput(raw)
-        const projectId = `project-${Date.now()}`
-
-        await fileTool(projectId, [
-            { name: "index.html", content: files.html },
-            { name: "style.css", content: files.css },
-            { name: "script.js", content: files.js },
-        ])
-
         return {
-            projectId,
             files,
             raw,
-            preview: previewTool(projectId),
             language: "html-css-js",
         }
     }
@@ -171,12 +236,7 @@ export async function runCodingAgent(prompt: string, language?: string) {
     }
 
     const { code, filename } = parseSingleFileOutput(raw, lang)
-    const projectId = `project-${Date.now()}`
-
-    await fileTool(projectId, [{ name: filename, content: code }])
-
     return {
-        projectId,
         files: null,
         singleFile: { code, filename, language: lang },
         raw,

@@ -15,6 +15,7 @@
 /.next/
 /out/
 /build
+.turbo/
 
 # Generated app output
 /projects/
@@ -43,6 +44,8 @@
 
 # Logs and local diagnostics
 *.log
+*.out
+*.err
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -53,6 +56,8 @@ ts_error.txt
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.orig
 *.swp
 *.swo
 *~

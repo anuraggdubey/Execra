@@ -1,60 +1,151 @@
 # WorkingGent
 
-WorkingGent is an agent workspace for people who want one calm place to run useful AI-assisted tasks without digging through technical clutter. It brings multiple task-focused agents into a single product surface so work can move from prompt to result with less friction.
+WorkingGent is a multi-agent workspace built around a Stellar wallet identity. It brings focused AI workflows into one product surface so users can run tasks, review outputs, and track escrowed task state on Soroban.
 
-## Live Link: (`https://workinggent.vercel.app/`)
+## Live App
 
-The platform is built around a simple idea: different jobs need different kinds of agents. Instead of forcing one generic assistant to do everything, WorkingGent gives each workflow its own focused role inside the same workspace.
+- Live URL: `ADD_LIVE_URL_HERE`
 
-## What WorkingGent Does
+## What It Does
 
-WorkingGent helps users:
+WorkingGent currently includes:
 
-- generate and preview code-based projects
-- search the web and summarize live findings
-- draft and approve emails before sending
-- connect GitHub and analyze real repositories
-- upload documents and extract useful insights
-- automate browser actions and collect live page data
+- `GitHub Agent` for repository indexing, code Q&A, and review workflows
+- `Coding Agent` for generating project files and preview-ready outputs
+- `Document Agent` for analyzing PDFs, spreadsheets, CSV, JSON, and text files
+- wallet-based identity using supported Stellar wallets
+- Soroban escrow tracking for task creation, completion, and cancellation
+- Supabase-backed task history and activity records
 
-Everything is presented through a single interface designed to keep attention on the task, the output, and the next action.
+## Stack
 
-## Agents Inside WorkingGent
+- `Next.js 16`
+- `React 19`
+- `TypeScript`
+- `Supabase`
+- `Soroban / Stellar SDK`
+- `Freighter`, `xBull`, and `Albedo` wallet support
 
-### Coding Agent
+## Stellar And Soroban Deployment
 
-The Coding Agent turns natural-language product or interface requests into working project files. It can generate code, save outputs, prepare previews, and package the result so the user can review what was created right away.
+This project is configured for `Stellar Testnet`.
 
-### Web Search Agent
+### Network
 
-The Web Search Agent retrieves live information from the web and turns it into a readable summary. It focuses on evidence-backed answers and helps users scan current information faster.
+- Network: `testnet`
+- RPC URL: `https://soroban-testnet.stellar.org`
+- Network Passphrase: `Test SDF Network ; September 2015`
+- Explorer base: `https://stellar.expert/explorer/testnet`
 
-### Email Agent
+### Deployed Contract
 
-The Email Agent writes clear outbound emails from a short request or context brief. It supports a review-first flow so messaging can be checked before anything is sent.
+- Soroban Contract ID: `CDXU5JFTCBO4AKPI2TVQ2BGC352IYXMOIIGPRYXGK247HHMOALKBLJUP`
+- Native XLM Stellar Asset Contract ID: `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`
+- Contract package path: [`contracts/task_escrow`](c:\Projects\agentforge\contracts\task_escrow)
 
-### GitHub Agent
+### Contract Functions
 
-The GitHub Agent connects to GitHub, works with real repositories, and helps users inspect code, understand structure, and review implementation details from actual projects.
+- `init(admin, token_contract)`
+- `set_executor(executor, allowed)`
+- `is_executor(executor)`
+- `create_task(task_id, user, agent_type, reward)`
+- `complete_task(task_id, caller, pay_executor)`
+- `cancel_task(task_id, caller)`
+- `get_task(task_id)`
+- `get_admin()`
+- `get_token()`
 
-### Document Agent
+## Environment Variables
 
-The Document Agent analyzes uploaded files such as PDFs, spreadsheets, CSVs, JSON, and text documents. It helps turn raw files into summaries, observations, and direct answers.
+Create `.env.local` and add the values your environment needs.
 
-### Browser Automation Agent
+### Required App Variables
 
-The Browser Automation Agent plans and performs controlled browser actions such as opening pages, navigating, extracting content, and returning the useful results from live websites.
+```env
+OPENAI_API_KEY=your_model_provider_key
+```
 
-## Product Feel
+### GitHub OAuth
 
-WorkingGent is designed as a practical operator workspace rather than a technical dashboard. The experience stays centered on outcomes: ask, run, review, and continue.
-Contract ID: CDXU5JFTCBO4AKPI2TVQ2BGC352IYXMOIIGPRYXGK247HHMOALKBLJUP
-XLM SAC ID: CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
+```env
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+```
 
-## Developer
+### Supabase
 
-Developed by `WorkingGent Team`
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_publishable_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+LEGACY_IMPORT_WALLET_ADDRESS=legacy-local-import
+```
+
+### Soroban / Stellar Testnet
+
+```env
+NEXT_PUBLIC_SOROBAN_CONTRACT_ID=CDXU5JFTCBO4AKPI2TVQ2BGC352IYXMOIIGPRYXGK247HHMOALKBLJUP
+NEXT_PUBLIC_SOROBAN_NETWORK=testnet
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+NEXT_PUBLIC_STELLAR_XLM_SAC_ID=CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
+```
+
+## Minimal Setup
+
+1. Install dependencies.
+
+```bash
+npm install
+```
+
+2. Create `.env.local` with your app, GitHub, Supabase, and Soroban values.
+
+3. Run the Supabase schema from [`supabase/schema.sql`](c:\Projects\agentforge\supabase\schema.sql).
+
+4. If your database was created before Soroban fields were added, also run [`supabase/soroban_migration.sql`](c:\Projects\agentforge\supabase\soroban_migration.sql).
+
+5. Start the app.
+
+```bash
+npm run dev
+```
+
+6. Open `http://localhost:3001`.
+
+## Useful Scripts
+
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+npm run import:legacy-projects
+```
+
+## Wallet Flow
+
+- connect a supported Stellar wallet
+- create an escrowed task on Soroban before agent work starts
+- run the selected agent workflow
+- sign the final completion transaction
+- review task history and on-chain status in the app
+
+## Project Structure
+
+- [`app`](c:\Projects\agentforge\app): Next.js app routes and API handlers
+- [`components`](c:\Projects\agentforge\components): UI components and agent surfaces
+- [`lib`](c:\Projects\agentforge\lib): wallet, Soroban, services, and agent logic
+- [`contracts/task_escrow`](c:\Projects\agentforge\contracts\task_escrow): Soroban escrow contract
+- [`supabase`](c:\Projects\agentforge\supabase): SQL schema and migration files
+- [`projects`](c:\Projects\agentforge\projects): generated local coding outputs
+
+## Notes
+
+- This repo currently targets `Stellar Testnet`, not mainnet.
+- Do not commit real secrets into `.env.local`.
+- The Soroban escrow flow depends on a supported wallet being connected when both create and complete signatures are requested.
 
 ## License
 
-This project is licensed under the `MIT License`.
+`MIT`

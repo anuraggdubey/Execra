@@ -1,6 +1,6 @@
-# WorkingGent
+# Excera
 
-WorkingGent is a multi-agent workspace built around a Stellar wallet identity. It brings focused AI workflows into one product surface so users can run tasks, review outputs, and track escrowed task state on Soroban.
+Excera is a multi-agent workspace built around a Stellar wallet identity. It brings focused AI workflows into one product surface so users can run tasks, review outputs, and track escrowed task state on Soroban.
 
 ## Live App
 
@@ -8,7 +8,7 @@ WorkingGent is a multi-agent workspace built around a Stellar wallet identity. I
 
 ## What It Does
 
-WorkingGent currently includes:
+Excera currently includes:
 
 - `GitHub Agent` for repository indexing, code Q&A, and review workflows
 - `Coding Agent` for generating project files and preview-ready outputs
@@ -16,6 +16,14 @@ WorkingGent currently includes:
 - wallet-based identity using supported Stellar wallets
 - Soroban escrow tracking for task creation, completion, and cancellation
 - Supabase-backed task history and activity records
+
+## User Feedback
+
+We collected feedback from 5+ testnet users.
+
+📄 [View Feedback Sheet](./feedback doc/user-feedback.xlsx)
+
+📋 [Submit Feedback](https://forms.gle/qXJ3EdkhUz9A95eN9)
 
 ## Stack
 
@@ -145,6 +153,14 @@ npm run import:legacy-projects
 - This repo currently targets `Stellar Testnet`, not mainnet.
 - Do not commit real secrets into `.env.local`.
 - The Soroban escrow flow depends on a supported wallet being connected when both create and complete signatures are requested.
+
+## Next Phase Improvement Plan
+
+In Level 6, I plan to add more agents so the product can support a wider range of workflows inside the same wallet-based workspace.
+
+- `Web Search Agent`: fetches live web information, extracts the useful parts, and returns a concise answer or summary with current context.
+- `Browser Automation Agent`: opens websites, navigates steps on the user’s behalf, captures page data, and returns structured results from live pages.
+- `Email Agent`: drafts clean outbound emails from a short prompt or task context and supports a review-first flow before sending.
 
 ## License
 

@@ -1,19 +1,7 @@
 import * as XLSX from "xlsx"
+import { PDFParse } from "pdf-parse"
 import { completeWithOpenRouter } from "@/lib/llm/openrouter"
 import { AgentExecutionError, createLlmError } from "@/lib/agents/shared"
-
-/* ── PDF extraction (worker-free) ── */
-let pdfjsConfigured = false
-async function loadPdfjs() {
-    // Use the legacy build which has broader compatibility
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
-    if (!pdfjsConfigured) {
-        // Disable the web worker — we're running on the server
-        pdfjsLib.GlobalWorkerOptions.workerSrc = ""
-        pdfjsConfigured = true
-    }
-    return pdfjsLib
-}
 
 const MAX_CONTENT_CHARS = 18000
 
@@ -134,25 +122,20 @@ async function normalizeDocument(buffer: Buffer, fileName: string, fileType: Sup
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-    const pdfjsLib = await loadPdfjs()
-    const data = new Uint8Array(buffer)
-    const doc = await pdfjsLib.getDocument({
-        data,
-        useWorkerFetch: false,
-        isEvalSupported: false,
-        useSystemFonts: true,
-    }).promise
+    const parser = new PDFParse({ data: buffer })
 
-    const pages: string[] = []
-    for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i)
-        const content = await page.getTextContent()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const text = content.items.map((item: any) => item.str ?? "").join(" ")
-        pages.push(text)
+    try {
+        const result = await parser.getText()
+        return result.text ?? ""
+    } catch (error) {
+        throw new AgentExecutionError(
+            "PDF_PARSE_FAILED",
+            error instanceof Error ? `Failed to read PDF text: ${error.message}` : "Failed to read PDF text.",
+            400
+        )
+    } finally {
+        await parser.destroy().catch(() => undefined)
     }
-
-    return pages.join("\n\n")
 }
 
 function normalizePlainText(fileName: string, text: string) {

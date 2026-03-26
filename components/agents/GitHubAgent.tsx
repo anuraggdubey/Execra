@@ -269,18 +269,14 @@ export default function GitHubAgent() {
                 2
             )
 
-            finalizeEscrowedTask({
+            await finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress: walletAddress!,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-                .then(() => setTxState("On-chain confirmed ✓"))
-                .catch((err) => {
-                    console.error("[github-index] on-chain finalize error:", err)
-                    setTxState("On-chain sync pending — results are saved.")
-                })
+            setTxState("On-chain confirmed ✓")
         } catch (err) {
             const message = getErrorMessage(err, "Failed to index repository")
             setError(message)
@@ -335,18 +331,14 @@ export default function GitHubAgent() {
             setTxState("Confirming on-chain...")
             completeAgentRun("github", `Completed repository prompt for ${selectedRepo.fullName}.`, 5)
 
-            finalizeEscrowedTask({
+            await finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-                .then(() => setTxState("On-chain confirmed ✓"))
-                .catch((err) => {
-                    console.error("[github-ask] on-chain finalize error:", err)
-                    setTxState("On-chain sync pending — results are saved.")
-                })
+            setTxState("On-chain confirmed ✓")
         } catch (err) {
             const message = getErrorMessage(err, "GitHub agent failed")
             setError(message)
@@ -395,18 +387,14 @@ export default function GitHubAgent() {
             setTxState("Confirming on-chain...")
             completeAgentRun("github", `Completed full review for ${selectedRepo.fullName}.`, 6)
 
-            finalizeEscrowedTask({
+            await finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-                .then(() => setTxState("On-chain confirmed ✓"))
-                .catch((err) => {
-                    console.error("[github-review] on-chain finalize error:", err)
-                    setTxState("On-chain sync pending — results are saved.")
-                })
+            setTxState("On-chain confirmed ✓")
         } catch (err) {
             const message = getErrorMessage(err, "Repository analysis failed")
             setError(message)

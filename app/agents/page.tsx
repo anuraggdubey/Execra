@@ -23,7 +23,6 @@ import { useAgentContext } from "@/lib/AgentContext"
 import ConnectWalletButton from "@/components/wallet/ConnectWalletButton"
 import { useWalletContext } from "@/lib/WalletContext"
 import { finalizeEscrowedTask, prepareEscrowedTask, rollbackEscrowedTask } from "@/lib/soroban/taskLifecycle"
-import type { TaskRecord } from "@/types/tasks"
 
 const GitHubAgent = dynamic(() => import("@/components/agents/GitHubAgent"), {
     ssr: false,
@@ -123,47 +122,10 @@ export default function AgentsPage() {
     const [documentError, setDocumentError] = useState<string | null>(null)
     const [documentRewardXlm, setDocumentRewardXlm] = useState("0.1500000")
     const [documentTxState, setDocumentTxState] = useState<string | null>(null)
-    const [taskHistory, setTaskHistory] = useState<TaskRecord[]>([])
-    const [taskHistoryLoading, setTaskHistoryLoading] = useState(false)
-
     const selectedAgent = useMemo(
         () => AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0],
         [selectedAgentId]
     )
-
-    useEffect(() => {
-        if (!walletAddress) {
-            setTaskHistory([])
-            return
-        }
-
-        let cancelled = false
-
-        const loadTaskHistory = async () => {
-            setTaskHistoryLoading(true)
-            try {
-                const response = await fetch(`/api/tasks?walletAddress=${encodeURIComponent(walletAddress)}&limit=8`)
-                const data = await response.json()
-                if (!response.ok) throw new Error(data.error ?? "Failed to load tasks")
-                if (!cancelled) setTaskHistory(Array.isArray(data.tasks) ? data.tasks : [])
-            } catch (error) {
-                console.error("[tasks] Failed to fetch task history", error)
-                if (!cancelled) setTaskHistory([])
-            } finally {
-                if (!cancelled) setTaskHistoryLoading(false)
-            }
-        }
-
-        void loadTaskHistory()
-        const intervalId = window.setInterval(() => {
-            void loadTaskHistory()
-        }, 15000)
-
-        return () => {
-            cancelled = true
-            window.clearInterval(intervalId)
-        }
-    }, [walletAddress, codingResult, documentResult])
 
     const runCodingAgent = async () => {
         if (!walletAddress || !codingPrompt.trim() || codingState === "running") return
@@ -183,7 +145,7 @@ export default function AgentsPage() {
                 agentType: "coding",
             })
 
-            setCodingTxState("Escrow created. Running the coding agent off-chain...")
+            setCodingTxState(`Escrow created (TX: ${preparedTask.blockchainPayload.createTxHash.slice(0, 8)}…). Running agent…`)
             const response = await fetch("/api/run-coding-agent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -216,23 +178,19 @@ export default function AgentsPage() {
                 throw new Error("Coding agent returned an incomplete payload.")
             }
 
-            setCodingTxState("Confirming on-chain...")
+            setCodingTxState("Finalizing escrow — confirming on-chain…")
             setCodingState("done")
             completeAgentRun("coding", `Prepared ${data.projectId} for handoff and follow-on integration.`)
 
-            // Non-blocking on-chain finalization — user sees results immediately
-            finalizeEscrowedTask({
+            const finalizeResult = await finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-                .then(() => setCodingTxState("On-chain confirmed ✓"))
-                .catch((err) => {
-                    console.error("[coding] on-chain finalize error:", err)
-                    setCodingTxState("On-chain sync pending — results are saved.")
-                })
+
+            setCodingTxState(`On-chain confirmed ✓ (TX: ${finalizeResult.txHash.slice(0, 8)}…)`)
         } catch (error: unknown) {
             const message = getErrorMessage(error, "Coding agent failed")
             setCodingError(message)
@@ -268,6 +226,7 @@ export default function AgentsPage() {
                 rewardXlm: documentRewardXlm,
                 agentType: "document",
             })
+            setDocumentTxState(`Escrow created (TX: ${preparedTask.blockchainPayload.createTxHash.slice(0, 8)}…). Analyzing…`)
             const formData = new FormData()
             formData.append("file", documentFile)
             formData.append("question", documentQuestion)
@@ -287,23 +246,19 @@ export default function AgentsPage() {
                 analysis: data.analysis,
                 truncated: Boolean(data.truncated),
             })
-            setDocumentTxState("Confirming on-chain...")
+            setDocumentTxState("Finalizing escrow — confirming on-chain…")
             setDocumentState("done")
             completeAgentRun("document", `Analyzed ${data.fileName} and prepared a concise brief.`)
 
-            // Non-blocking on-chain finalization — user sees results immediately
-            finalizeEscrowedTask({
+            const finalizeResult = await finalizeEscrowedTask({
                 taskId: data.taskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,
                 blockchainPayload: preparedTask.blockchainPayload,
             })
-                .then(() => setDocumentTxState("On-chain confirmed ✓"))
-                .catch((err) => {
-                    console.error("[document] on-chain finalize error:", err)
-                    setDocumentTxState("On-chain sync pending — results are saved.")
-                })
+
+            setDocumentTxState(`On-chain confirmed ✓ (TX: ${finalizeResult.txHash.slice(0, 8)}…)`)
         } catch (error: unknown) {
             const message = getErrorMessage(error, "Document analysis failed")
             setDocumentError(message)
@@ -426,54 +381,6 @@ export default function AgentsPage() {
                 </aside>
 
                 <div className="min-w-0 space-y-4 sm:space-y-5">
-                    <section className="panel p-3 sm:p-5">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <div className="eyebrow">Task History</div>
-                                <h2 className="mt-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">Recent tasks</h2>
-                            </div>
-                            <StatusPill state={taskHistoryLoading ? "running" : "idle"} />
-                        </div>
-
-                        {!walletAddress && (
-                            <p className="mt-4 text-sm text-foreground-soft">
-                                Connect a wallet to load persisted tasks for this workspace identity.
-                            </p>
-                        )}
-
-                        {walletAddress && taskHistory.length === 0 && !taskHistoryLoading && (
-                            <p className="mt-4 text-sm text-foreground-soft">
-                                No persisted tasks yet. Run any agent and the task will appear here.
-                            </p>
-                        )}
-
-                        {taskHistory.length > 0 && (
-                            <div className="mt-4 grid gap-3">
-                                {taskHistory.map((task) => (
-                                    <div key={task.id} className="rounded-xl border border-border bg-background p-4">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <div className="text-sm font-semibold capitalize text-foreground">{task.agent_type} task</div>
-                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-                                                task.status === "completed"
-                                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                                    : task.status === "failed"
-                                                        ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                                        : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                            }`}>
-                                                {task.status}
-                                            </span>
-                                        </div>
-                                        <div className="mt-2 text-sm text-foreground-soft">{task.input_prompt}</div>
-                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
-                                            <span>{new Date(task.created_at).toLocaleString()}</span>
-                                            {task.reward_stroops && <span>Reward: {(Number(task.reward_stroops) / 10_000_000).toFixed(7)} XLM</span>}
-                                            {task.on_chain_status !== "uninitialized" && <span>Chain: {task.on_chain_status}</span>}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
 
                     {selectedAgent.id === "github" && <GitHubAgent />}
 

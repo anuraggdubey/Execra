@@ -278,12 +278,13 @@ export default function AgentsPage() {
             if (!data.taskId) {
                 throw new Error("Document analysis returned without a task ID.")
             }
+            const documentTaskId = data.taskId
             setDocumentTxState("Finalizing escrow — confirming on-chain…")
             setDocumentState("done")
             completeAgentRun("document", `Analyzed ${data.fileName} and prepared a concise brief.`)
 
             const finalizeResult = await finalizeEscrowedTask({
-                taskId: data.taskId,
+                taskId: documentTaskId,
                 walletAddress,
                 walletProviderId,
                 onChainTaskId: preparedTask.onChainTaskId,

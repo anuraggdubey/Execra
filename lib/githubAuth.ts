@@ -1,8 +1,11 @@
 import { cookies } from "next/headers"
 import { timingSafeEqual } from "crypto"
 
-const GITHUB_OAUTH_STATE_COOKIE = "workinggent_github_oauth_state"
-const LEGACY_GITHUB_OAUTH_STATE_COOKIE = "agentforge_github_oauth_state"
+const GITHUB_OAUTH_STATE_COOKIE = "execra_github_oauth_state"
+const LEGACY_GITHUB_OAUTH_STATE_COOKIES = [
+    "workinggent_github_oauth_state",
+    "agentforge_github_oauth_state",
+]
 
 type OAuthStatePayload = {
     state: string
@@ -39,9 +42,9 @@ export async function consumeOAuthState(expected: string) {
     const store = await cookies()
     const raw =
         store.get(GITHUB_OAUTH_STATE_COOKIE)?.value ??
-        store.get(LEGACY_GITHUB_OAUTH_STATE_COOKIE)?.value
+        LEGACY_GITHUB_OAUTH_STATE_COOKIES.map((cookieName) => store.get(cookieName)?.value).find(Boolean)
 
-    for (const cookieName of [GITHUB_OAUTH_STATE_COOKIE, LEGACY_GITHUB_OAUTH_STATE_COOKIE]) {
+    for (const cookieName of [GITHUB_OAUTH_STATE_COOKIE, ...LEGACY_GITHUB_OAUTH_STATE_COOKIES]) {
         store.set(cookieName, "", {
             httpOnly: true,
             sameSite: "lax",

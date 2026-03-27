@@ -27,7 +27,7 @@ export function getOpenRouterClient() {
         baseURL: OPENROUTER_BASE_URL,
         defaultHeaders: {
             "HTTP-Referer": process.env.APP_URL ?? "http://localhost:3001",
-            "X-Title": "WorkingGent",
+            "X-Title": "Execra",
         },
     })
 }

@@ -55,7 +55,7 @@ export default function ConnectWalletButton({
 
                         <div className="space-y-4 p-5">
                             <p className="text-sm leading-relaxed text-foreground-soft">
-                                WorkingGent uses your Stellar wallet address as the primary identity across the app.
+                                Execra uses your Stellar wallet address as the primary identity across the app.
                             </p>
 
                             {walletAddress && (

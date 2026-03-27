@@ -39,7 +39,8 @@ type WalletContextType = {
     refreshBalance: () => Promise<void>
 }
 
-const STORAGE_KEY = "workinggent_wallet_session_v1"
+const STORAGE_KEY = "execra_wallet_session_v1"
+const LEGACY_STORAGE_KEYS = ["workinggent_wallet_session_v1"]
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined)
 
@@ -47,7 +48,10 @@ function readWalletSession(): WalletSession | null {
     if (typeof window === "undefined") return null
 
     try {
-        const raw = window.localStorage.getItem(STORAGE_KEY)
+        const raw =
+            window.localStorage.getItem(STORAGE_KEY) ??
+            LEGACY_STORAGE_KEYS.map((key) => window.localStorage.getItem(key)).find(Boolean) ??
+            null
         if (!raw) return null
         const parsed = JSON.parse(raw) as WalletSession
         if (!parsed.walletAddress || !parsed.walletProviderId) return null
@@ -62,10 +66,16 @@ function writeWalletSession(session: WalletSession | null) {
 
     if (!session) {
         window.localStorage.removeItem(STORAGE_KEY)
+        for (const key of LEGACY_STORAGE_KEYS) {
+            window.localStorage.removeItem(key)
+        }
         return
     }
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+    for (const key of LEGACY_STORAGE_KEYS) {
+        window.localStorage.removeItem(key)
+    }
 }
 
 async function persistWalletUser(walletAddress: string) {

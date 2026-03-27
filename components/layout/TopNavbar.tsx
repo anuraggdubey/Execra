@@ -17,7 +17,7 @@ export default function TopNavbar() {
         <header className="flex h-11 shrink-0 items-center justify-between border-b border-border bg-surface/85 px-3 backdrop-blur-md sm:h-14 sm:px-6">
             <div className="flex items-center gap-3 sm:gap-5">
                 <Link href="/agents" className="text-[13px] font-bold tracking-tight text-foreground sm:text-sm">
-                    WorkingGent
+                    Execra
                 </Link>
 
                 <nav className="hidden items-center gap-1 sm:flex">

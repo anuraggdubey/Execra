@@ -163,7 +163,7 @@ export default function GitHubAgent() {
     useEffect(() => {
         const listener = (event: MessageEvent<GitHubOAuthMessage>) => {
             if (event.origin !== window.location.origin) return
-            if (event.data?.type !== "workinggent:github-oauth") return
+            if (event.data?.type !== "execra:github-oauth") return
 
             if (!event.data.success || !event.data.walletAddress || !event.data.accessToken) {
                 setError(event.data?.message ?? "GitHub OAuth failed")
@@ -194,7 +194,7 @@ export default function GitHubAgent() {
         setError(null)
         const popup = window.open(
             `/api/auth/github?wallet=${encodeURIComponent(walletAddress)}`,
-            "workinggent_github_oauth",
+            "execra_github_oauth",
             "width=620,height=760"
         )
 

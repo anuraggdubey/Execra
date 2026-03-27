@@ -20,7 +20,7 @@ export default function Home() {
         <div className="flex min-h-screen min-h-dvh flex-col">
             <header className="flex items-center justify-between px-5 py-4 sm:px-8">
                 <Link href="/" className="text-sm font-semibold tracking-tight text-foreground">
-                    WorkingGent
+                    Execra
                 </Link>
                 <div className="flex items-center gap-2">
                     {!mounted ? (

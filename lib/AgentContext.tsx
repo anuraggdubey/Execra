@@ -39,16 +39,18 @@ interface AgentContextType {
 }
 
 const STORAGE_KEYS = {
-    agents: "workinggent_platform_agents_v3",
-    activities: "workinggent_platform_activities_v3",
+    agents: "execra_platform_agents_v3",
+    activities: "execra_platform_activities_v3",
 }
 
 const LEGACY_AGENT_KEYS = [
+    "workinggent_platform_agents_v3",
     "workinggent_platform_agents_v2",
     "agentforge_platform_agents_v2",
 ]
 
 const LEGACY_ACTIVITY_KEYS = [
+    "workinggent_platform_activities_v3",
     "workinggent_platform_activities_v2",
     "agentforge_platform_activities_v2",
 ]

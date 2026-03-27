@@ -17,8 +17,8 @@ const manrope = Manrope({
 })
 
 export const metadata: Metadata = {
-  title: "WorkingGent",
-  description: "WorkingGent is a calmer control surface for tool-driven work.",
+  title: "Execra",
+  description: "Execra is a calmer control surface for tool-driven work.",
 }
 
 export default function RootLayout({

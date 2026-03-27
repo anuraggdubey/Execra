@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 
         const response = await fetch(commonsUrl, {
             headers: {
-                "User-Agent": "WorkingGent/1.0",
+                "User-Agent": "Execra/1.0",
             },
             cache: "no-store",
         })

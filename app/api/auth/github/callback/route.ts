@@ -49,7 +49,7 @@ export async function GET(req: Request) {
 
     if (error) {
         return popupResponse({
-            type: "workinggent:github-oauth",
+            type: "execra:github-oauth",
             success: false,
             message: errorDescription ?? error,
         })
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
 
     if (!config.configured || !config.clientId || !config.clientSecret) {
         return popupResponse({
-            type: "workinggent:github-oauth",
+            type: "execra:github-oauth",
             success: false,
             message: "GitHub OAuth is not configured.",
         })
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
 
     if (!code || !state) {
         return popupResponse({
-            type: "workinggent:github-oauth",
+            type: "execra:github-oauth",
             success: false,
             message: "GitHub did not return a valid OAuth payload.",
         })
@@ -74,7 +74,7 @@ export async function GET(req: Request) {
     const oauthState = await consumeOAuthState(state)
     if (!oauthState?.walletAddress) {
         return popupResponse({
-            type: "workinggent:github-oauth",
+            type: "execra:github-oauth",
             success: false,
             message: "GitHub OAuth state validation failed.",
         })
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
 
     if (!response.ok) {
         return popupResponse({
-            type: "workinggent:github-oauth",
+            type: "execra:github-oauth",
             success: false,
             message: "GitHub token exchange failed.",
         })
@@ -106,14 +106,14 @@ export async function GET(req: Request) {
     const payload = await response.json()
     if (!payload.access_token || typeof payload.access_token !== "string") {
         return popupResponse({
-            type: "workinggent:github-oauth",
+            type: "execra:github-oauth",
             success: false,
             message: payload.error_description ?? "GitHub did not return an access token.",
         })
     }
 
     return popupResponse({
-        type: "workinggent:github-oauth",
+        type: "execra:github-oauth",
         success: true,
         walletAddress: oauthState.walletAddress,
         accessToken: payload.access_token,

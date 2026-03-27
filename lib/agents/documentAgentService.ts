@@ -1,5 +1,4 @@
 import * as XLSX from "xlsx"
-import { PDFParse } from "pdf-parse"
 import { completeWithOpenRouter } from "@/lib/llm/openrouter"
 import { AgentExecutionError, createLlmError } from "@/lib/agents/shared"
 
@@ -122,7 +121,25 @@ async function normalizeDocument(buffer: Buffer, fileName: string, fileType: Sup
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-    const parser = new PDFParse({ data: buffer })
+    let PDFParseCtor: (new (options: { data: Buffer }) => {
+        getText: () => Promise<{ text?: string }>
+        destroy: () => Promise<void>
+    })
+
+    try {
+        const pdfParseModule = await import("pdf-parse")
+        PDFParseCtor = pdfParseModule.PDFParse
+    } catch (error) {
+        throw new AgentExecutionError(
+            "PDF_RUNTIME_UNAVAILABLE",
+            error instanceof Error
+                ? `PDF parser could not be loaded in the server runtime: ${error.message}`
+                : "PDF parser could not be loaded in the server runtime.",
+            500
+        )
+    }
+
+    const parser = new PDFParseCtor({ data: buffer })
 
     try {
         const result = await parser.getText()

@@ -1,4 +1,5 @@
 import fs from "fs/promises"
+import os from "os"
 import path from "path"
 import archiver from "archiver"
 
@@ -7,8 +8,12 @@ export interface FileToolWriteFile {
     content: string
 }
 
+function getProjectsRoot() {
+    return path.join(os.tmpdir(), "execra-projects")
+}
+
 export async function fileTool(projectId: string, files: FileToolWriteFile[]) {
-    const projectDir = path.join(process.cwd(), "projects", projectId)
+    const projectDir = path.join(getProjectsRoot(), projectId)
     await fs.mkdir(projectDir, { recursive: true })
 
     await Promise.all(
@@ -25,13 +30,13 @@ export async function fileTool(projectId: string, files: FileToolWriteFile[]) {
 }
 
 export async function readProjectFile(projectId: string, fileName: string) {
-    const projectDir = path.join(process.cwd(), "projects", projectId)
+    const projectDir = path.join(getProjectsRoot(), projectId)
     return fs.readFile(path.join(projectDir, fileName), "utf-8")
 }
 
 export async function projectExists(projectId: string) {
     try {
-        await fs.access(path.join(process.cwd(), "projects", projectId))
+        await fs.access(path.join(getProjectsRoot(), projectId))
         return true
     } catch {
         return false
@@ -39,7 +44,7 @@ export async function projectExists(projectId: string) {
 }
 
 export async function zipProject(projectId: string) {
-    const projectDir = path.join(process.cwd(), "projects", projectId)
+    const projectDir = path.join(getProjectsRoot(), projectId)
 
     return new Promise<Buffer>((resolve, reject) => {
         const archive = archiver("zip", { zlib: { level: 9 } })

@@ -25,6 +25,8 @@ We collected feedback from 5+ testnet users.
 
 📋 [Submit Feedback](https://forms.gle/qXJ3EdkhUz9A95eN9)
 
+[Video Demo](https://drive.google.com/file/d/1xzH0Tx3HaGSin6YHpRl7Sm_yznTDdXzo/view?usp=drive_link)
+
 ## Stack
 
 - `Next.js 16`

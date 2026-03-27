@@ -275,6 +275,9 @@ export default function AgentsPage() {
                 analysis: data.analysis,
                 truncated: Boolean(data.truncated),
             })
+            if (!data.taskId) {
+                throw new Error("Document analysis returned without a task ID.")
+            }
             setDocumentTxState("Finalizing escrow — confirming on-chain…")
             setDocumentState("done")
             completeAgentRun("document", `Analyzed ${data.fileName} and prepared a concise brief.`)

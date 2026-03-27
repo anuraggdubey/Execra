@@ -5,6 +5,7 @@ import { createAgentRun, createTask, failTask, updateTask } from "@/lib/services
 import { upsertUserByWallet } from "@/lib/services/userService"
 import { requireWalletAddress } from "@/lib/services/validation"
 
+export const runtime = "nodejs"
 export const maxDuration = 60
 
 export async function POST(req: Request) {

@@ -102,6 +102,26 @@ function getErrorMessage(error: unknown, fallback: string) {
     return message
 }
 
+async function parseApiJson<T>(response: Response): Promise<T> {
+    const contentType = response.headers.get("content-type") ?? ""
+
+    if (contentType.includes("application/json")) {
+        return response.json() as Promise<T>
+    }
+
+    const text = await response.text()
+    const compact = text.replace(/\s+/g, " ").trim()
+    const preview = compact.slice(0, 180)
+
+    if (/<!doctype html>|<html/i.test(text)) {
+        throw new Error(
+            `The server returned an HTML error page instead of JSON. This usually means the deployed API route crashed before sending a response.${preview ? ` Response preview: ${preview}` : ""}`
+        )
+    }
+
+    throw new Error(preview || "The server returned a non-JSON response.")
+}
+
 export default function AgentsPage() {
     const { startAgentRun, completeAgentRun, failAgentRun } = useAgentContext()
     const { walletAddress, shortWalletAddress, walletBalance, walletProviderId } = useWalletContext()
@@ -239,7 +259,14 @@ export default function AgentsPage() {
                 method: "POST",
                 body: formData,
             })
-            const data = await response.json()
+            const data = await parseApiJson<{
+                error?: string
+                taskId?: string
+                fileName: string
+                fileType: string
+                analysis: string
+                truncated?: boolean
+            }>(response)
             if (!response.ok) throw new Error(data.error ?? "Document analysis failed")
 
             setDocumentResult({

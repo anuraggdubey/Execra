@@ -78,6 +78,7 @@ export default function GitHubAgent() {
     const [rewardXlm, setRewardXlm] = useState("0.2000000")
     const [txState, setTxState] = useState<string | null>(null)
     const lastLoadedTokenRef = useRef<string | null>(null)
+    const agentLocked = loading || indexing
 
     const githubConfigured = Boolean(platformStatus?.tools?.github?.configured)
 
@@ -460,7 +461,8 @@ export default function GitHubAgent() {
                                 value={rewardXlm}
                                 onChange={(event) => setRewardXlm(event.target.value)}
                                 inputMode="decimal"
-                                className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                disabled={agentLocked}
+                                className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                                 style={{ minHeight: 44 }}
                             />
                             <p className="mt-2 text-[12px] leading-relaxed text-foreground-soft sm:text-xs">
@@ -488,7 +490,7 @@ export default function GitHubAgent() {
                                 <button
                                     type="button"
                                     onClick={beginOAuth}
-                                    disabled={connecting}
+                                    disabled={connecting || agentLocked}
                                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
                                     style={{ minHeight: 44 }}
                                 >
@@ -514,7 +516,8 @@ export default function GitHubAgent() {
                                 <button
                                     type="button"
                                     onClick={() => void disconnect()}
-                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-soft transition-colors hover:bg-surface-elevated"
+                                    disabled={agentLocked}
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-soft transition-colors hover:bg-surface-elevated disabled:opacity-50"
                                     style={{ minHeight: 44 }}
                                 >
                                     <Unplug size={14} />
@@ -541,7 +544,7 @@ export default function GitHubAgent() {
                                 setResult("")
                                 setPrompt("")
                             }}
-                            disabled={!ghUser || repos.length === 0}
+                            disabled={!ghUser || repos.length === 0 || agentLocked}
                             className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                             style={{ minHeight: 44 }}
                         >
@@ -556,7 +559,7 @@ export default function GitHubAgent() {
                         <button
                             type="button"
                             onClick={() => void loadRepo()}
-                            disabled={!selectedRepo || indexing || !ghUser}
+                            disabled={!selectedRepo || indexing || !ghUser || agentLocked}
                             className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-elevated disabled:opacity-50"
                             style={{ minHeight: 44 }}
                         >
@@ -603,7 +606,7 @@ export default function GitHubAgent() {
                     <button
                         type="button"
                         onClick={() => void runFullReview()}
-                        disabled={!isReadyForPrompt || loading}
+                        disabled={!isReadyForPrompt || loading || agentLocked}
                         className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-foreground-soft transition-colors hover:bg-surface-elevated disabled:opacity-40"
                         style={{ minHeight: 36 }}
                     >
@@ -634,14 +637,14 @@ export default function GitHubAgent() {
                                     : "Connect a wallet, connect GitHub, and index a repository first."
                             }
                             rows={4}
-                            disabled={!isReadyForPrompt || loading}
+                            disabled={!isReadyForPrompt || loading || agentLocked}
                             className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 sm:text-sm"
                         />
                         <div className="mt-3 flex gap-2">
                             <button
                                 type="button"
                                 onClick={() => void runPrompt()}
-                                disabled={!prompt.trim() || !isReadyForPrompt || loading}
+                                disabled={!prompt.trim() || !isReadyForPrompt || loading || agentLocked}
                                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50 sm:flex-none"
                                 style={{ minHeight: 44 }}
                             >
@@ -655,7 +658,8 @@ export default function GitHubAgent() {
                                     setResult("")
                                     setError(null)
                                 }}
-                                className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium text-foreground-soft transition-colors hover:bg-surface-elevated"
+                                disabled={agentLocked}
+                                className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium text-foreground-soft transition-colors hover:bg-surface-elevated disabled:opacity-50"
                                 style={{ minHeight: 44 }}
                             >
                                 <RefreshCw size={14} />

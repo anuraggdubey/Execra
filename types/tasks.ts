@@ -6,12 +6,8 @@ export type OnChainTaskStatus = "uninitialized" | "pending" | "completed" | "can
 export type CodingTaskOutput =
     | {
         kind: "project"
-        files: {
-            "index.html": string
-            "style.css": string
-            "script.js": string
-        }
-        previewEntry: "index.html"
+        files: Record<string, string>
+        previewEntry: string
       }
     | {
         kind: "single-file"

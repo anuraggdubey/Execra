@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import {
     AlertCircle,
@@ -46,7 +46,7 @@ type AgentDefinition = {
     badge: string
 }
 
-type GeneratedFiles = { html: string; css: string; js: string }
+type GeneratedFiles = Record<string, string>
 
 type CodingResult =
     | {
@@ -122,6 +122,8 @@ export default function AgentsPage() {
     const [documentError, setDocumentError] = useState<string | null>(null)
     const [documentRewardXlm, setDocumentRewardXlm] = useState("0.1500000")
     const [documentTxState, setDocumentTxState] = useState<string | null>(null)
+    const codingLocked = codingState === "running"
+    const documentLocked = documentState === "running"
     const selectedAgent = useMemo(
         () => AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0],
         [selectedAgentId]
@@ -405,8 +407,9 @@ export default function AgentsPage() {
                                             value={codingPrompt}
                                             onChange={(event) => setCodingPrompt(event.target.value)}
                                             rows={8}
+                                            disabled={codingLocked}
                                             placeholder="Build a lightweight Web3 onboarding dashboard with wallet status, task queue, and contract deployment checklist."
-                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)] disabled:opacity-60"
                                         />
                                     </div>
 
@@ -415,7 +418,8 @@ export default function AgentsPage() {
                                         <select
                                             value={codingLanguage}
                                             onChange={(event) => setCodingLanguage(event.target.value)}
-                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                            disabled={codingLocked}
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)] disabled:opacity-60"
                                         >
                                             <option value="html-css-js">HTML / CSS / JS project</option>
                                             <option value="typescript">TypeScript</option>
@@ -433,7 +437,8 @@ export default function AgentsPage() {
                                             value={codingRewardXlm}
                                             onChange={(event) => setCodingRewardXlm(event.target.value)}
                                             inputMode="decimal"
-                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                            disabled={codingLocked}
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)] disabled:opacity-60"
                                         />
                                         <p className="mt-2 text-xs text-muted">Escrowed on Soroban before the coding agent runs, then released back on completion.</p>
                                     </div>
@@ -441,7 +446,7 @@ export default function AgentsPage() {
                                     <div className="flex flex-wrap gap-3">
                                         <button
                                             onClick={() => void runCodingAgent()}
-                                            disabled={!walletAddress || !codingPrompt.trim() || codingState === "running"}
+                                            disabled={!walletAddress || !codingPrompt.trim() || codingLocked}
                                             className="button-primary disabled:opacity-50"
                                         >
                                             {codingState === "running" ? <Loader2 size={15} className="animate-spin" /> : <Braces size={15} />}
@@ -454,6 +459,7 @@ export default function AgentsPage() {
                                                 setCodingError(null)
                                                 setCodingState("idle")
                                             }}
+                                            disabled={codingLocked}
                                             className="button-secondary"
                                         >
                                             Reset
@@ -564,6 +570,7 @@ export default function AgentsPage() {
                                             type="file"
                                             accept=".pdf,.xlsx,.xls,.csv,.json,.txt"
                                             onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
+                                            disabled={documentLocked}
                                             className="hidden"
                                         />
                                     </label>
@@ -574,8 +581,9 @@ export default function AgentsPage() {
                                             value={documentQuestion}
                                             onChange={(event) => setDocumentQuestion(event.target.value)}
                                             rows={6}
+                                            disabled={documentLocked}
                                             placeholder="Summarize the product requirements and list the implementation constraints that matter for Web3 integration."
-                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)] disabled:opacity-60"
                                         />
                                     </div>
 
@@ -585,7 +593,8 @@ export default function AgentsPage() {
                                             value={documentRewardXlm}
                                             onChange={(event) => setDocumentRewardXlm(event.target.value)}
                                             inputMode="decimal"
-                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)]"
+                                            disabled={documentLocked}
+                                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-[color:var(--ring)] disabled:opacity-60"
                                         />
                                         <p className="mt-2 text-xs text-muted">Escrowed on Soroban before the document task starts.</p>
                                     </div>
@@ -593,7 +602,7 @@ export default function AgentsPage() {
                                     <div className="flex flex-wrap gap-3">
                                         <button
                                             onClick={() => void runDocumentAgent()}
-                                            disabled={!walletAddress || !documentFile || documentState === "running"}
+                                            disabled={!walletAddress || !documentFile || documentLocked}
                                             className="button-primary disabled:opacity-50"
                                         >
                                             {documentState === "running" ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
@@ -607,6 +616,7 @@ export default function AgentsPage() {
                                                 setDocumentError(null)
                                                 setDocumentState("idle")
                                             }}
+                                            disabled={documentLocked}
                                             className="button-secondary"
                                         >
                                             Clear
@@ -741,31 +751,28 @@ function InfoBox({ message }: { message: string }) {
 }
 
 function CodePreviewTabs({ files }: { files: GeneratedFiles }) {
-    const [activeTab, setActiveTab] = useState<keyof GeneratedFiles>("html")
-
-    const labels: Record<keyof GeneratedFiles, string> = {
-        html: "HTML",
-        css: "CSS",
-        js: "JS",
-    }
+    const fileNames = Object.keys(files)
+    const [activeTab, setActiveTab] = useState<string>(fileNames[0] ?? "index.html")
+    const selectedTab = activeTab in files ? activeTab : (fileNames[0] ?? "index.html")
+    const activeFile = files[selectedTab] ?? ""
 
     return (
         <div className="rounded-xl border border-border">
-            <div className="flex border-b border-border">
-                {Object.entries(labels).map(([key, label]) => (
+            <div className="flex flex-wrap border-b border-border">
+                {fileNames.map((fileName) => (
                     <button
-                        key={key}
-                        onClick={() => setActiveTab(key as keyof GeneratedFiles)}
+                        key={fileName}
+                        onClick={() => setActiveTab(fileName)}
                         className={`px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] ${
-                            activeTab === key ? "bg-surface-elevated text-foreground" : "text-muted"
+                            selectedTab === fileName ? "bg-surface-elevated text-foreground" : "text-muted"
                         }`}
                     >
-                        {label}
+                        {fileName}
                     </button>
                 ))}
             </div>
             <pre className="max-h-[380px] overflow-auto bg-[#0d1117] p-4 text-xs text-gray-200">
-                <code>{files[activeTab]}</code>
+                <code>{activeFile}</code>
             </pre>
         </div>
     )

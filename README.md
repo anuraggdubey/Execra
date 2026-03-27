@@ -139,14 +139,49 @@ npm run import:legacy-projects
 - sign the final completion transaction
 - review task history and on-chain status in the app
 
-## Project Structure
+## Architecture
 
-- [`app`](c:\Projects\agentforge\app): Next.js app routes and API handlers
-- [`components`](c:\Projects\agentforge\components): UI components and agent surfaces
-- [`lib`](c:\Projects\agentforge\lib): wallet, Soroban, services, and agent logic
-- [`contracts/task_escrow`](c:\Projects\agentforge\contracts\task_escrow): Soroban escrow contract
-- [`supabase`](c:\Projects\agentforge\supabase): SQL schema and migration files
-- [`projects`](c:\Projects\agentforge\projects): generated local coding outputs
+Excera is designed as a wallet-first multi-agent system where the frontend, server routes, agent services, database layer, and Soroban contract each have a focused responsibility.
+
+### System View
+
+```text
+User
+  ->
+Next.js UI
+  ->
+API Routes
+  ->
+Agent Services + Wallet/Soroban Logic
+  ->
+Supabase + Soroban Contract
+```
+
+### Architecture Layers
+
+- `Frontend Layer` in [`app`](c:\Projects\agentforge\app) and [`components`](c:\Projects\agentforge\components): renders the agent workspace, settings, activity history, and wallet-connected task flows.
+- `API Layer` in [`app/api`](c:\Projects\agentforge\app\api): receives requests from the UI, validates inputs, coordinates agent execution, and persists task updates.
+- `Agent And Service Layer` in [`lib`](c:\Projects\agentforge\lib): contains the core business logic for GitHub analysis, coding generation, document parsing, wallet integration, and Soroban lifecycle handling.
+- `Data Layer` in [`supabase`](c:\Projects\agentforge\supabase): stores users, tasks, blockchain metadata, and agent run history.
+- `Blockchain Layer` in [`contracts/task_escrow`](c:\Projects\agentforge\contracts\task_escrow): manages on-chain escrow state for task creation, completion, and cancellation on Stellar testnet.
+
+### Flow Of Execution
+
+1. A user connects a Stellar wallet and starts an agent task from the frontend.
+2. The app prepares an escrow transaction and requests a Soroban wallet signature.
+3. After escrow creation, the selected agent runs through a server route and produces its output.
+4. Task data and execution results are written to Supabase.
+5. The app requests the final Soroban signature to complete or cancel the escrowed task.
+6. Activity and on-chain task status are reflected back in the UI.
+
+### Key Directories
+
+- [`app`](c:\Projects\agentforge\app): application routes, pages, and API endpoints
+- [`components`](c:\Projects\agentforge\components): reusable interface components and agent UI surfaces
+- [`lib`](c:\Projects\agentforge\lib): shared logic for agents, services, Soroban, wallet integrations, and helpers
+- [`contracts/task_escrow`](c:\Projects\agentforge\contracts\task_escrow): Soroban smart contract source and deployment docs
+- [`supabase`](c:\Projects\agentforge\supabase): SQL schema, migrations, and persistence setup
+- [`projects`](c:\Projects\agentforge\projects): generated local outputs from coding workflows
 
 ## Notes
 

@@ -41,6 +41,40 @@ export async function GET(
             return NextResponse.json({ error: "Preview asset not found" }, { status: 404 })
         }
 
+        // When serving the HTML entry, inline CSS and JS so relative-path
+        // resolution (which breaks when Next.js strips trailing slashes) is
+        // no longer required.
+        if (assetPath === task.output_result.previewEntry) {
+            const files = task.output_result.files as Record<string, string>
+            let html = fileContent
+
+            const cssContent = files["style.css"] ?? files["styles.css"] ?? ""
+            if (cssContent) {
+                html = html
+                    .replace(/<link[^>]+href=["'][^"']*style[s]?\.css["'][^>]*\/?>/gi, "")
+                    .replace(/<\/head>/i, `<style>${cssContent}</style>\n</head>`)
+            }
+
+            const jsContent = files["script.js"] ?? files["main.js"] ?? ""
+            if (jsContent) {
+                html = html
+                    .replace(/<script[^>]+src=["'][^"']*script\.js["'][^>]*><\/script>/gi, "")
+                    .replace(/<script[^>]+src=["'][^"']*main\.js["'][^>]*><\/script>/gi, "")
+                    .replace(/<\/body>/i, `<script>${jsContent}</script>\n</body>`)
+            }
+
+            // Strip the <base> tag that is no longer needed
+            html = html.replace(/<base[^>]*\/?>/gi, "")
+
+            return new Response(html, {
+                headers: {
+                    "Content-Type": "text/html; charset=utf-8",
+                    "Cache-Control": "no-store",
+                    "X-Frame-Options": "SAMEORIGIN",
+                },
+            })
+        }
+
         return new Response(fileContent, {
             headers: {
                 "Content-Type": getContentType(assetPath),

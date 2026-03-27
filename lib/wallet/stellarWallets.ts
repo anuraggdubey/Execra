@@ -35,13 +35,24 @@ const WALLET_CATALOG: Record<SupportedWalletId, Omit<SupportedStellarWallet, "is
     },
 }
 
+function normalizeWalletErrorMessage(message: string) {
+    const normalized = message.trim()
+    const lowered = normalized.toLowerCase()
+
+    if (lowered.includes("metamask") || lowered.includes("ethereum")) {
+        return "Only Stellar wallets are supported here. Please connect with Freighter, xBull, or Albedo."
+    }
+
+    return normalized
+}
+
 export function extractWalletError(error: unknown) {
     if (error instanceof Error && error.message.trim()) {
-        return error.message
+        return normalizeWalletErrorMessage(error.message)
     }
 
     if (typeof error === "string" && error.trim()) {
-        return error
+        return normalizeWalletErrorMessage(error)
     }
 
     if (error && typeof error === "object") {
@@ -70,7 +81,7 @@ export function extractWalletError(error: unknown) {
                 return "The wallet reported an external error. Check the wallet popup or extension and try again."
             }
 
-            return nestedMessage
+            return normalizeWalletErrorMessage(nestedMessage)
         }
 
         const parts = [
@@ -85,7 +96,7 @@ export function extractWalletError(error: unknown) {
         try {
             const serialized = JSON.stringify(error)
             if (serialized && serialized !== "{}") {
-                return serialized
+                return normalizeWalletErrorMessage(serialized)
             }
         } catch {
             // Ignore serialization failure.
@@ -132,7 +143,10 @@ async function connectFreighterWallet() {
 }
 
 async function connectXBullWallet() {
-    const bridge = new xBullWalletConnect()
+    const bridge = new xBullWalletConnect({
+        preferredTarget: "website",
+        url: "https://wallet.xbull.app/connect",
+    })
 
     try {
         return await bridge.connect()

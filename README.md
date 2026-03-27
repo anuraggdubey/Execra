@@ -4,7 +4,11 @@ Excera is a multi-agent workspace built around a Stellar wallet identity. It bri
 
 ## Live App
 
-- Live URL: `ADD_LIVE_URL_HERE`
+[Live URL](https://execra-ai.vercel.app)
+
+
+## Demo Video
+[Video Demo](https://drive.google.com/file/d/1xzH0Tx3HaGSin6YHpRl7Sm_yznTDdXzo/view?usp=drive_link)
 
 ## What It Does
 
@@ -21,11 +25,10 @@ Excera currently includes:
 
 We collected feedback from 5+ testnet users.
 
-📄 [View Feedback Sheet](./feedback doc/user-feedback.xlsx)
+📄 [View Feedback Sheet](https://docs.google.com/spreadsheets/d/1m6TaHdlt-Aq-8KD_0iVJUwQH0wSc6tWdmSN2C3pYl3Q/edit?usp=sharing)
 
 📋 [Submit Feedback](https://forms.gle/qXJ3EdkhUz9A95eN9)
 
-[Video Demo](https://drive.google.com/file/d/1xzH0Tx3HaGSin6YHpRl7Sm_yznTDdXzo/view?usp=drive_link)
 
 ## Stack
 

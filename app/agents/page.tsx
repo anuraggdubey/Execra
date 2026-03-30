@@ -19,10 +19,12 @@ import {
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
+import WorkspaceOnboarding from "@/components/WorkspaceOnboarding"
 import { useAgentContext } from "@/lib/AgentContext"
 import ConnectWalletButton from "@/components/wallet/ConnectWalletButton"
 import { useWalletContext } from "@/lib/WalletContext"
 import { finalizeEscrowedTask, prepareEscrowedTask, rollbackEscrowedTask } from "@/lib/soroban/taskLifecycle"
+import { getGitHubSession } from "@/lib/wallet/githubSession"
 
 const GitHubAgent = dynamic(() => import("@/components/agents/GitHubAgent"), {
     ssr: false,
@@ -123,7 +125,7 @@ async function parseApiJson<T>(response: Response): Promise<T> {
 }
 
 export default function AgentsPage() {
-    const { startAgentRun, completeAgentRun, failAgentRun } = useAgentContext()
+    const { agents, startAgentRun, completeAgentRun, failAgentRun } = useAgentContext()
     const { walletAddress, shortWalletAddress, walletBalance, walletProviderId } = useWalletContext()
     const [selectedAgentId, setSelectedAgentId] = useState<WorkspaceAgentId>("github")
 
@@ -148,6 +150,8 @@ export default function AgentsPage() {
         () => AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0],
         [selectedAgentId]
     )
+    const hasGitHubConnection = Boolean(getGitHubSession(walletAddress)?.accessToken)
+    const hasCompletedTask = agents.some((agent) => agent.tasksCompleted > 0)
 
     const runCodingAgent = async () => {
         if (!walletAddress || !codingPrompt.trim() || codingState === "running") return
@@ -342,6 +346,13 @@ export default function AgentsPage() {
                 </div>
             </section>
 
+            <WorkspaceOnboarding
+                walletConnected={Boolean(walletAddress)}
+                hasGitHubConnection={hasGitHubConnection}
+                selectedAgentId={selectedAgentId}
+                hasCompletedTask={hasCompletedTask}
+            />
+
             {/* ── Wallet Gate ── */}
             {!walletAddress && (
                 <section className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-2xl sm:px-5 sm:py-5">
@@ -356,7 +367,7 @@ export default function AgentsPage() {
             )}
 
             {/* ── Main Layout ── */}
-            <section className="grid gap-4 sm:gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+            <section id="agent-workbench" className="grid gap-4 sm:gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
                 {/* Mobile: horizontal pill selector | Desktop: sidebar cards */}
                 <aside className="panel overflow-hidden p-2 sm:sticky sm:top-0 sm:self-start sm:p-4">
                     <div className="eyebrow hidden px-2 pb-2 sm:block">Active stack</div>
@@ -415,7 +426,11 @@ export default function AgentsPage() {
 
                 <div className="min-w-0 space-y-4 sm:space-y-5">
 
-                    {selectedAgent.id === "github" && <GitHubAgent />}
+                    {selectedAgent.id === "github" && (
+                        <div id="github-setup">
+                            <GitHubAgent />
+                        </div>
+                    )}
 
                     {selectedAgent.id === "coding" && (
                         <section className="panel overflow-hidden">

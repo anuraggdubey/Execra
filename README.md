@@ -6,6 +6,17 @@ Excera is a multi-agent workspace built around a Stellar wallet identity. It bri
 
 [Live URL](https://execra-ai.vercel.app)
 
+## CI
+
+GitHub Actions now runs a `CI` workflow for pull requests and for pushes to `main` and `master`.
+It validates the repo with:
+
+- `npm ci`
+- `npm run lint`
+- `npm run build`
+
+No deployment job is included here because the app is already deployed and working separately.
+
 
 ## Demo Video
 [Video Demo](https://drive.google.com/file/d/1xzH0Tx3HaGSin6YHpRl7Sm_yznTDdXzo/view?usp=drive_link)
